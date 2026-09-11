@@ -199,6 +199,27 @@ Namespace and separator colours remain consistent across contexts. Colours are
 saved with the session; reapply a selection after editing its tags or colours.
 `NO_COLOR` and `TERM=dumb` disable prompt colours.
 
+Choose whether integrated terminals show the context prefix:
+
+```sh
+chop config prompt-prefix off  # hide it
+chop config prompt-prefix on   # show it (default)
+chop config prompt-prefix      # print the saved setting
+```
+
+This saves `promptPrefix: off` or `promptPrefix: on` in the configuration.
+All integrated terminals using that configuration pick up the setting at their
+next prompt refresh, including already-open sessions. It only controls the
+visible prefix; context switching and completion remain active. After upgrading
+from a version without this option, reload shell integration in existing shells
+once so they can honor it.
+
+Prompt integration preserves the shell's existing `PROMPT_SUBST` setting.
+When enabled (as in Oh My Zsh), the context label uses a stable variable reference
+so updates do not rewrite terminal prompt markers. Otherwise, the label is
+updated literally. Removing integration removes its own label while preserving
+later theme edits and terminal markers.
+
 An unchanged current-shell context may be a no-op after required ADC verification.
 Recoverable launch failures retain Selected for retry; changed dependencies require
 a fresh review. Subshell exit status is preserved.

@@ -373,15 +373,44 @@ fi
 _chop_refresh_prompt() {
   _chop_sync_default
 
-  local _chop_base="$PROMPT"
-  if [[ -n "${CONTEXTHOP_APPLIED_PROMPT_PREFIX:-}" && "$_chop_base" == "$CONTEXTHOP_APPLIED_PROMPT_PREFIX"* ]]; then
-    _chop_base="${_chop_base#$CONTEXTHOP_APPLIED_PROMPT_PREFIX}"
+  local _chop_live_prefix
+  if ! _chop_live_prefix="$(command "$CONTEXTHOP_BINARY" _prompt 2>/dev/null)"; then
+    _chop_live_prefix="$CONTEXTHOP_PROMPT_PREFIX"
   fi
-  CONTEXTHOP_BASE_PROMPT="$_chop_base"
-  local _chop_live_prefix="$(command "$CONTEXTHOP_BINARY" _prompt 2>/dev/null)"
-  [[ -z "$_chop_live_prefix" ]] && _chop_live_prefix="$CONTEXTHOP_PROMPT_PREFIX"
+  local _chop_old_fragment="${_chop_prompt_fragment-${CONTEXTHOP_APPLIED_PROMPT_PREFIX:-}}"
+  local _chop_new_fragment="$_chop_live_prefix"
+  # A stable reference lets themes and terminals retain their prompt snapshots
+  # even when the context changes. Do not enable substitution on the user's
+  # behalf: that could execute previously literal text in their prompt.
+  if [[ -o promptsubst && ( -n "$_chop_live_prefix" || "$_chop_old_fragment" == '${CONTEXTHOP_APPLIED_PROMPT_PREFIX}' ) ]]; then
+    _chop_new_fragment='${CONTEXTHOP_APPLIED_PROMPT_PREFIX}'
+  fi
+
+  # Without substitution, changing the label requires a literal prompt edit.
+  # Ghostty exposes a clean snapshot; only use it when its hook is installed
+  # and no other theme/integration has changed the marked prompt since then.
+  if [[ "$_chop_old_fragment" != "$_chop_new_fragment" ]] &&
+      (( $+functions[_ghostty_precmd] )) &&
+      [[ -n ${_ghostty_saved_ps1+x} && -n ${_ghostty_marked_ps1+x} && "$PROMPT" == "$_ghostty_marked_ps1" ]]; then
+    PROMPT="$_ghostty_saved_ps1"
+  fi
+  if [[ -n "$_chop_old_fragment" && "$PROMPT" == *"$_chop_old_fragment"* ]]; then
+    if [[ "$_chop_old_fragment" != "$_chop_new_fragment" ]]; then
+      PROMPT="${PROMPT/"$_chop_old_fragment"/"$_chop_new_fragment"}"
+    fi
+  else
+    # Keep leading nonprinting terminal markers ahead of a newly enabled label.
+    local _chop_leading='' _chop_tail="$PROMPT" _chop_marker
+    while [[ "$_chop_tail" == '%{'* && "$_chop_tail" == *'%}'* ]]; do
+      _chop_marker="${_chop_tail%%\%\}*}%}"
+      _chop_leading+="$_chop_marker"
+      _chop_tail="${_chop_tail#"$_chop_marker"}"
+    done
+    PROMPT="${_chop_leading}${_chop_new_fragment}${_chop_tail}"
+  fi
+  _chop_prompt_fragment="$_chop_new_fragment"
   CONTEXTHOP_APPLIED_PROMPT_PREFIX="$_chop_live_prefix"
-  PROMPT="${CONTEXTHOP_APPLIED_PROMPT_PREFIX}${CONTEXTHOP_BASE_PROMPT}"
+  CONTEXTHOP_BASE_PROMPT="${PROMPT/"$_chop_prompt_fragment"/}"
 }
 
 autoload -Uz add-zsh-hook
@@ -656,7 +685,8 @@ func ShellInit(shell string) (string, error) {
 	script.WriteString("unset _chop_baseline _chop_owned_session CONTEXTHOP_SCOPE CONTEXTHOP_SHARED_REVISION\n")
 	script.WriteString("unfunction _chop_refresh_prompt 2>/dev/null\n")
 	script.WriteString("unfunction chop 2>/dev/null\n")
-	script.WriteString("if [[ -n ${CONTEXTHOP_BASE_PROMPT+x} ]]; then PROMPT=\"$CONTEXTHOP_BASE_PROMPT\"; unset CONTEXTHOP_BASE_PROMPT CONTEXTHOP_APPLIED_PROMPT_PREFIX; fi\n")
+	script.WriteString("if [[ -n ${_chop_prompt_fragment+x} ]]; then PROMPT=\"${PROMPT/\"$_chop_prompt_fragment\"/}\"; elif [[ -n ${CONTEXTHOP_BASE_PROMPT+x} ]]; then PROMPT=\"$CONTEXTHOP_BASE_PROMPT\"; fi\n")
+	script.WriteString("unset _chop_prompt_fragment CONTEXTHOP_BASE_PROMPT CONTEXTHOP_APPLIED_PROMPT_PREFIX\n")
 	script.WriteString("unset CONTEXTHOP_BINARY\n")
 	return script.String(), nil
 }

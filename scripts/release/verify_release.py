@@ -6,11 +6,14 @@ import platform
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tarfile
 import tempfile
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("version")
+parser.add_argument("--archives-only", action="store_true",
+                    help="verify bundle integrity without executing the native binary")
 args = parser.parse_args()
 if not re.fullmatch(r"v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)", args.version):
     parser.error("expected a stable vMAJOR.MINOR.PATCH tag")
@@ -40,6 +43,9 @@ for name in sorted(names):
                 assert archive.extractfile(member).read() == expected.read_bytes(), "licence contents differ from source"
         assert 'license "MIT"' in formula, "formula must declare MIT"
         assert 'doc.install "LICENSE", "THIRD_PARTY_NOTICES"' in formula, "formula must install notices"
+if args.archives_only:
+    print(f"Verified {args.version} archive integrity and formula (native execution skipped)")
+    sys.exit(0)
 assert platform.system() == "Darwin", "native smoke tests require macOS"
 assert platform.machine() == "arm64", "native smoke tests require Apple Silicon"
 arch = "arm64"

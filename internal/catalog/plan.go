@@ -48,6 +48,15 @@ type Plan struct {
 
 func (p Plan) Valid() bool { return len(p.Problems) == 0 }
 
+func PlanPromptPrefix(cfg config.Config, value string) (Plan, error) {
+	after := cfg.Clone()
+	after.PromptPrefix = value
+	if err := after.Validate(); err != nil {
+		return Plan{}, err
+	}
+	return buildPlan(cfg, after, nil), nil
+}
+
 func PlanAddIdentity(cfg config.Config, name string, item config.Identity) (Plan, error) {
 	if _, exists := cfg.Identities[name]; exists {
 		return Plan{}, duplicate(KindIdentity, name)

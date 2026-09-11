@@ -35,6 +35,7 @@ func ValidateName(name string) error {
 }
 
 type Config struct {
+	PromptPrefix      string                       `yaml:"promptPrefix,omitempty"`
 	Tags              map[string]Tag               `yaml:"tags,omitempty"`
 	Discovery         map[string]IdentityDiscovery `yaml:"discovery,omitempty"`
 	Version           int                          `yaml:"version"`
@@ -209,6 +210,9 @@ func Encode(w io.Writer, cfg Config) error {
 }
 
 func (c Config) Validate() error {
+	if c.PromptPrefix != "" && c.PromptPrefix != "on" && c.PromptPrefix != "off" {
+		return errors.New("promptPrefix must be on or off")
+	}
 	var problems []string
 	for name, identity := range c.Identities {
 		if err := identity.Browser.Validate(); err != nil {
