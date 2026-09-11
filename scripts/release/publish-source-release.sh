@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Add a source release only after binary publication and installation checks pass.
+# Add source release notes after binary publication and the tap update.
 set -euo pipefail
-: "${GH_TOKEN:?Missing source repository token}"
 : "${GITHUB_REPOSITORY:?Missing source repository}"
 : "${TAG:?Missing release tag}"
 : "${TAP_REPO:?Missing tap repository}"

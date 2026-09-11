@@ -1,288 +1,79 @@
 # Releasing ContextHop
 
-A release starts when you push a version tag. GitHub builds the macOS Apple Silicon
-binary, tests it, updates Homebrew, and publishes the release notes in both
-repositories. You do not need to build or upload the release yourself.
-
-The normal process is: **choose a version → prepare a PR → merge → push the tag →
-wait for GitHub to finish**. Record the request start time and report total elapsed
-time through final verification. Run the commands below from the repository root.
-You’ll need Go, Zsh, Git, an authenticated `gh` CLI, and Gitleaks.
-
-## 1. Choose the version and prepare the PR
-
-Check which versions already exist:
+Make changes, test locally, commit, then publish from your Apple Silicon Mac:
 
 ```sh
-gh release list --repo infurio/contexthop
-gh release list --repo infurio/homebrew-tap
-git ls-remote --tags https://github.com/infurio/contexthop.git
+./scripts/release-local v0.7.5
 ```
 
-Choose an unused `vMAJOR.MINOR.PATCH`: usually a patch for fixes or a minor version
-for new features. Beta/RC tags and leading zeroes are not supported.
+Use an unused version. No PR, CI wait, repeated test suite, or Homebrew installation
+is required to publish. `gh` must be logged in with write access to both
+`infurio/contexthop` and `infurio/homebrew-tap`. Go, Python 3.12+, Zsh, and Gitleaks
+must be installed.
 
-Add `docs/releases/MAJOR.MINOR.PATCH.md` with the changes users will notice and any
-upgrade instructions. GitHub uses this file for both release pages. Update other
-docs as needed. If Go or dependencies changed, also run
-`python3 scripts/update_notices.py` and review `THIRD_PARTY_NOTICES`.
+## Normal development
 
-Reuse checks already completed for the unchanged code. A release request does
-not require another local `make ci`, race suite, or release-tooling test run:
-required PR CI performs those checks. If a specific changed behavior has not been
-verified, run its targeted check. Use the [verification checklist](#release-verification)
-to identify missing coverage, not to repeat unrelated tests.
+1. Make the change and run relevant local tests. `make check` runs tests, vet,
+   and a build; `make ci` adds formatting and race checks when needed. Reuse
+   successful checks while the code and relevant inputs are unchanged.
+2. Add short user-facing notes in `docs/releases/VERSION.md`.
+3. Review the diff and fixture provenance, run `git diff --check`, and commit on
+   `main`. Review all changed text and distinct changed media frames according to
+   [AGENTS.md](AGENTS.md). Use a public commit identity. Never derive examples from
+   real configuration. Update notices if dependencies changed.
+4. Run `./scripts/release-local vVERSION`.
 
-Review the diff and fictional fixture provenance before pushing. Run
-`git diff --check`, then commit, push over authenticated HTTPS and open the PR.
-Keep credentials out of command arguments and logs; use the existing `gh` login:
+The command captures the clean commit, scans it for secrets, builds one versioned
+archive using the warm local Go cache, and verifies its checksum, contents, and
+native binary. It atomically pushes that commit to main and creates the version
+tag, uploads the archive, and updates the tap formula. It refuses existing remote
+tags/releases and never force-pushes. A divergent remote main must be reconciled
+before publication.
 
-```sh
-git -c credential.helper= -c 'credential.helper=!gh auth git-credential' \
-  push https://github.com/infurio/contexthop.git HEAD
-```
-
-Include existing test results in the PR and merge after **Required checks** passes.
-Release workflow changes must be merged too: the tag uses the workflow in its commit.
-
-Demo recording is separate. If a demo needs updating, use
-[`scripts/record-demos`](docs/demos/README.md) before merging. CI and release jobs
-do not record demos.
-
-## 2. Check the merged commit
-
-```sh
-git switch main
-git pull --ff-only https://github.com/infurio/contexthop.git main
-git status --short
-git log -1 --format='%H %s'
-```
-
-`git status --short` should print nothing, and the last commit should be the PR you
-intend to release. Stop if either is wrong or the pull failed. Confirm that commit’s
-GitHub CI passed before continuing.
-
-Review the committed changes for credentials and personal details, including
-commit author information. Use a public commit identity. Scan the exact commit:
-
-```sh
-release_scan_dir=$(mktemp -d)
-git archive HEAD | tar -x -C "$release_scan_dir"
-gitleaks dir --redact --no-banner "$release_scan_dir"
-```
-
-Resolve any findings before releasing. Review demo frames visually as well;
-a text scan cannot read them. Keep scan reports outside the repository.
-
-Secret scanning does not detect every private context name or organizational
-identifier. Before publication, verify that tests, examples, snapshots and media
-were constructed from fictional fixtures, not copied from live configuration.
-Review all changed text and every distinct media frame against the
-[repository privacy requirements](AGENTS.md). Unknown fixture provenance blocks
-publication until the content is replaced with independently constructed fictional
-data. Never commit private comparison inputs, matched values, or audit reports.
-
-## 3. Push the release tag
-
-Replace `vX.Y.Z` with your chosen version. Recheck that it is still unused, then run:
-
-```sh
-release_tag=vX.Y.Z
-git tag -a "$release_tag" -m "ContextHop $release_tag"
-git -c credential.helper= -c 'credential.helper=!gh auth git-credential' \
-  push https://github.com/infurio/contexthop.git "refs/tags/$release_tag"
-```
-
-**The push starts publication.** The tag supplies the binary’s version, so no source
-version constant needs editing. Never reuse a tag, including one from an incomplete
-release. Wait for this release to finish before starting another.
-
-## 4. Wait, then confirm
-
-Open the [Release workflow](https://github.com/infurio/contexthop/actions/workflows/release.yml),
-or watch it from the terminal:
-
-```sh
-gh run list --workflow release.yml --branch "$release_tag"
-# Replace RUN_ID with the ID shown for this release.
-gh run watch RUN_ID --exit-status --interval 30
-```
-
-Use one watcher per run; do not add separate status polling loops.
-Wait for **all five jobs**, including `source-release`, to pass. Then check both pages:
-
-```sh
-gh release view "$release_tag" --repo infurio/homebrew-tap
-gh release view "$release_tag" --repo infurio/contexthop
-```
-
-The binary release should contain the ARM64 archive and `checksums.txt`. Both pages
-should include your notes and the right source commit; the source release should
-link to the downloads. Confirm the Homebrew formula has the new version.
-
-Users can now upgrade:
+When it prints **available through Brew**, users can run:
 
 ```sh
 brew update && brew upgrade infurio/tap/contexthop
 ```
 
-## If something fails
+`brew update` refreshes the formula; `brew upgrade` installs the binary.
+Source release notes are published afterward. That starts one background
+Homebrew installation check on a fresh Mac. Publication does not wait for it;
+GitHub reports failures through Actions. A failure discovered after publication
+may require a new patch release. Do not wait for that job to report Brew availability.
 
-Read the failed job’s log before retrying. Fix setup or permission problems, then
-rerun **failed jobs only** if assets have already been published:
+GitHub CI runs only for optional PRs or manual dispatch. Direct pushes and tags
+never start the old build-and-publish pipeline. Main should retain protection
+against deletion and force pushes, without mandatory PRs or required checks.
 
-```sh
-gh run rerun RUN_ID --failed
-```
-
-Do not delete, overwrite, or move a published version. A code fix normally needs a
-new patch release. If an upload failed while the release was still a draft,
-inspect that draft before deleting it and retrying; the publisher will not
-overwrite it automatically.
-
-The tap update can safely retry when its contents already match. It rejects
-downgrades and conflicting contents for the same version. The source-release job
-leaves an existing release unchanged. There is no automatic rollback.
-
-## Reference
-
-These details are useful when changing the release tooling or setting it up again.
-
-<details>
-<summary><strong>What GitHub does</strong></summary>
-
-### Packaging and retries
-
-| Job | What it does |
-| --- | --- |
-| `candidate` | Validates the tag, main ancestry, and notes; checks CI evidence; builds, verifies, and tests a local Homebrew install. |
-| `publish` | On Linux, rechecks archive integrity, uploads it as a draft, compares downloaded assets, then publishes. Native execution already passed in `candidate`. |
-| `update-tap` | Tests installation through public download URLs, then updates the formula. |
-| `verify-install` | Installs from the public tap on a fresh Mac runner. |
-| `source-release` | Copies the notes and adds the binary download link in the source repository. |
-
-Full CI is reused only from the latest main-branch push run of `ci.yml` for the
-exact tagged commit, with all three jobs successful in that attempt. Missing,
-failed, unfinished, or documentation-only evidence causes the candidate job to run
-full checks instead. An API error also falls back to full checks.
-
-The archive is built once and reused throughout. It contains `chop`, `LICENSE`,
-and `THIRD_PARTY_NOTICES`, with no configuration or credentials. Provider CLIs are
-installed separately. New releases target macOS ARM64; older Intel assets remain
-available. Release runs are serialized, but are not guaranteed FIFO ordering.
-
-### Keeping releases fast
-
-- Wait for the exact merged commit's full main CI to pass before tagging. Tagging
-  earlier makes the candidate job run the full suite again.
-- Reuse local check results while the tested code is unchanged. Required PR CI
-  supplies full, race and publication-guard checks; do not duplicate them locally
-  as a release prerequisite. Repeat only checks invalidated by changes or needed
-  to diagnose a failure.
-- Publish the candidate artifact built by CI rather than building a second local
-  candidate for upload. Packaging locally is an optional debugging step.
-- Keep upload and integrity checks on Linux; reserve macOS runners for native
-  execution and Homebrew installation. Keep the fresh-runner public tap check.
-- Diagnose retries from the failed job's log and rerun failed jobs only.
-
-Runner queue time and GitHub/Homebrew network latency still affect duration.
-Compare job and step timestamps on each release before removing further checks.
-
-### Local packaging
-
-Optional, for debugging packaging before publication:
+## Build without publishing
 
 ```sh
-python3 scripts/release/package_release.py "$release_tag"
-python3 scripts/release/verify_release.py "$release_tag"
+./scripts/release-local v0.7.5 --prepare
 ```
 
-These commands create and check `dist/<tag>/`. They do not publish anything.
-Packaging refuses a nonempty output directory; remove only disposable local output
-when rebuilding an unpublished candidate. Build paths and VCS metadata are omitted.
+This performs the local build, source scan, and verification without GitHub access.
+The bundle is retained in `dist/v0.7.5`. Before running publication for the same
+version, remove only that disposable, unpublished directory; publication builds
+again from the clean commit. Preparation is for debugging, not a routine extra step.
 
-`scripts/release/test-homebrew.sh` installs and uninstalls a temporary candidate.
-Run it on a disposable runner, not over your normal ContextHop installation.
+## Interrupted publication
 
-### Failures and retries
+The command stops on errors and keeps the bundle in `dist/VERSION`. Inspect what
+succeeded before retrying. Do not move tags or replace published assets.
 
-See [If something fails](#if-something-fails). Separate jobs let a failed later
-stage retry without rebuilding or republishing successful earlier stages.
+- Before the atomic push: fix the problem, remove the unpublished local bundle,
+  and run the command again. No remote release has been created.
+- After the push but before upload: the tag exists. Use the retained bundle and
+  `scripts/release/publish-release.sh` to finish upload. If a draft exists, inspect
+  it first; the publisher intentionally refuses to overwrite it.
+- After assets are published: rerun `scripts/release/update_tap.py vVERSION`, then
+  `scripts/release/publish-source-release.sh`. Formula updates accept identical
+  content on retry and reject downgrades or conflicting same-version contents.
+- After the formula update: Brew is already ready; only source notes or background
+  verification may remain.
 
-</details>
-
-<details>
-<summary><strong>What to smoke-test</strong></summary>
-
-### Release verification
-
-Choose checks relevant to the changes and record what actually ran in the PR.
-CI and fictional provider responses do not establish live-account behaviour.
-
-- **Terminal UI:** selection priorities, dependent unstaging, ADC toggle/reset,
-  apply, workspace save, identity choice, empty lists, filters, Options and Help.
-  Check resizing, tag colours, and readability without colour. The
-  [user guide](docs/usage.md) defines the expected interactions.
-- **Shells and credentials:** managed and unmanaged Zsh, separate identities and
-  contexts in separate processes, explicit subshells, current-shell switching,
-  and preserved child exit status. With two integrated terminals, apply a shared
-  config, pin one terminal with Apply here, then publish another shared config.
-  Confirm only the follower changes, the pinned header previews the shared config,
-  and Ctrl+G / Join shared rejoins without publishing Selected. Check the Not set
-  state after `chop shared clear`, and setup guidance without integration.
-  Check CLI and ADC identities separately;
-  disabled bindings must not use ambient credentials.
-- **Failure paths:** cancelled or failed authentication/validation must leave the
-  active context unchanged. Completed discovery results must survive cancellation;
-  cleanup removes only abandoned staging. Failed edits stay recoverable, changed
-  dependencies require review, and noninteractive commands must not open browsers.
-- **Kubernetes changes:** missing, unreadable, multiple, and conflicting kubeconfig
-  sources; namespaces; endpoint/CA fingerprints; distinct API, access, and network
-  errors. Activation must not add remote reachability checks.
-- **Publication content:** source, diagnostics, release notes and every distinct
-  demo frame for private data. Check archive contents, owner metadata and build paths.
-- **Support claims:** verify SSH, tmux, remote development, or accessibility if the
-  release claims support for them.
-
-</details>
-
-<details>
-<summary><strong>One-time GitHub setup</strong></summary>
-
-### One-time GitHub setup
-
-- Enable Actions, the pinned official actions, and macOS runners.
-- Add `HOMEBREW_TAP_TOKEN` to the source repository’s Actions secrets: a fine-grained
-  token for `infurio/homebrew-tap` with Contents read/write and permission to update
-  its default branch. The source repository’s `GITHUB_TOKEN` cannot write to the tap.
-- Keep `Formula/contexthop.rb` in the tap with an explicit stable version.
-- Require **Required checks** on `main`, and restrict `v*` tag creation/deletion to
-  maintainers. The workflow does not configure branch or tag protection.
-
-Normal CI runs on PRs, main pushes, and merge-queue entries. Documentation-only
-changes use whitespace/link checks; code, demo scripts, configuration, and unknown
-changes use the macOS suite. **Required checks** gates either path. Avoid workflow
-path filters that could leave this required check pending. Publishing credentials
-are used only in tag-triggered jobs.
-
-</details>
-
-<details>
-<summary><strong>Making source public</strong></summary>
-
-### Source publication
-
-A release does not change repository visibility. The current-commit scan above
-does not audit old commits, PRs, releases, or private backups.
-
-Before making a repository public, audit those historical records too. If history
-must be excluded, publish a reviewed export in a new repository using a public
-commit identity. Exclude credentials, real catalogs, local environment files,
-caches, generated binaries, and Git history; ignore rules do not remove files
-already tracked by Git.
-
-Inspect the export’s files, links, permissions, owner metadata, and media. Extract
-and verify the final export, and repeat the review if its contents change. Keep
-sensitive scan reports outside the export.
-
-</details>
+For these recovery scripts, set `TAG=vVERSION`, `TAP_REPO=infurio/homebrew-tap`,
+`GITHUB_REPOSITORY=infurio/contexthop`, and `GITHUB_SHA` to the released source
+commit. Run them from that source checkout. They use your existing `gh` login.
+Do not introduce a new version solely to retry a network failure.

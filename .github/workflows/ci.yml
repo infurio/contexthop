@@ -2,40 +2,14 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
-  merge_group:
-  workflow_call:
-    inputs:
-      force_full:
-        type: boolean
-        default: false
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  scope:
-    name: Change scope and documentation
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    outputs:
-      full: ${{ steps.scope.outputs.full }}
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Select checks and validate documentation-only changes
-        id: scope
-        env:
-          FORCE_FULL: ${{ inputs.force_full }}
-        run: python3 scripts/ci_scope.py
-
   macos:
     name: macOS (arm64)
-    needs: scope
-    if: needs.scope.outputs.full == 'true'
     runs-on: macos-15
     timeout-minutes: 25
     env:
@@ -49,29 +23,5 @@ jobs:
         with:
           go-version-file: .go-version
           cache-dependency-path: go.sum
-      - name: Build, test, vet, formatting, and race checks with zsh available
-        run: make ci
-      - name: Test release publication guards
-        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
-
-  required:
-    name: Required checks
-    if: always()
-    needs: [scope, macos]
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Require the selected checks to pass
-        env:
-          SCOPE_RESULT: ${{ needs.scope.result }}
-          FULL: ${{ needs.scope.outputs.full }}
-          MACOS_RESULT: ${{ needs.macos.result }}
-        run: |
-          test "$SCOPE_RESULT" = success
-          if [ "$FULL" = true ]; then
-            test "$MACOS_RESULT" = success
-          elif [ "$FULL" = false ]; then
-            test "$MACOS_RESULT" = skipped
-          else
-            exit 1
-          fi
+      - run: make ci
+      - run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v

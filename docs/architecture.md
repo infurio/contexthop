@@ -192,7 +192,8 @@ package.
 Tests cover resolution, staging, cancellation, snapshot isolation, persistence,
 stale writes, authentication result delivery and asynchronous responsiveness.
 Provider stubs and viewport checks do not prove live-account behavior.
-Record manual integration evidence with each [release](../RELEASE.md#release-verification).
+Record relevant manual integration evidence with the change.
+[Releases](../RELEASE.md) reuse completed local checks.
 
 ## Potential follow-up work
 

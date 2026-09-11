@@ -25,7 +25,7 @@ for goos, goarch in [("darwin", "arm64")]:
     name = f"contexthop_{version}_{goos}_{goarch}.tar.gz"
     env = dict(os.environ, GOOS=goos, GOARCH=goarch, CGO_ENABLED="0",
                GOTOOLCHAIN=os.environ.get("TOOLCHAIN", "go" + (root / ".go-version").read_text().strip()),
-               GOCACHE=str(root / ".gocache"))
+               GOCACHE=os.environ.get("GOCACHE", str(root / ".gocache")))
     with tempfile.TemporaryDirectory(prefix="contexthop-release-") as staging:
         binary = Path(staging) / "chop"
         subprocess.run(["go", "build", "-trimpath", "-buildvcs=false",

@@ -28,7 +28,7 @@ selects that version. Provider CLIs are only needed for the integrations you use
 automated tests and [demos](docs/demos/README.md) use isolated fixtures and stubs.
 See [architecture and development](docs/architecture.md) for the code layout.
 
-Before submitting code or release-tool changes, run:
+Run tests relevant to your change while developing. For a full local check:
 
 ```sh
 make ci
@@ -39,8 +39,8 @@ git diff --check
 Add regression coverage for behaviour changes. For TUI changes, check normal
 terminal sizes, keyboard navigation, search, cancellation, and managed/unmanaged
 shell behaviour. Describe manual checks and anything you could not verify.
-Documentation-only changes receive lightweight CI checks when they match the
-[documented path rules](RELEASE.md#one-time-github-setup).
+GitHub CI is optional: it runs for PRs or can be started manually. The maintainer
+can push directly to main and [release locally](RELEASE.md).
 
 Keep PRs focused and explain the user-visible outcome. The project uses the
 [MIT licence](LICENSE); contributions are made under the same licence.

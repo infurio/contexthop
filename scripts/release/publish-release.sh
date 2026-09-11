@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Called only by the trusted tag workflow. Never replace an existing release.
+# Publish the locally verified bundle using the existing gh login. Never overwrite.
 set -euo pipefail
-: "${GH_TOKEN:?Set HOMEBREW_TAP_TOKEN in GitHub Actions secrets}"
 : "${TAG:?Missing release tag}"
 : "${TAP_REPO:?Missing tap repository}"
 : "${GITHUB_SHA:?Missing source commit}"

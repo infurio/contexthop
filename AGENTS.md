@@ -33,11 +33,13 @@ a regression test, denylist, or scanner configuration, even to prevent recurrenc
   Before v1, remove superseded commands and settings rather than retaining aliases.
 - A release request is publication of the prepared changes, not a fresh development
   cycle. Do not expand its scope except to fix a demonstrated release blocker.
-- Reuse successful checks while the code and relevant inputs are unchanged.
-  Do not rerun a local full or race suite merely because a release was requested;
-  required PR CI runs those checks. Run missing targeted checks only when needed.
-- Review publication content before pushing. Preserve privacy review, required CI,
-  exact merged-commit verification, and the fresh Homebrew installation check.
+- Run relevant tests locally while developing and reuse successful results for
+  unchanged code. Releases do not rerun test suites or wait for GitHub CI.
+- Push directly to main for solo development; PRs and remote CI are optional.
+- Review publication content before pushing. Preserve privacy review, build the
+  exact committed source, and verify the archive and native binary locally.
+- Publish with scripts/release-local. Do not add runner waits or Homebrew
+  installation loops to the publication path.
 - Use authenticated HTTPS for GitHub operations. Never print credentials or
   change credentials speculatively after a transport failure.
 - Use one watcher per CI/release run with a 30-second interval. Avoid overlapping
