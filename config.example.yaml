@@ -1,0 +1,65 @@
+version: 1
+
+tags:
+  development:
+    color: "#4ade80"
+
+# Identities, projects, Kubernetes targets, and Docker targets may set
+# hidden: true. Hidden records retain their mappings and discovery updates.
+# Press h on the resource's tab to show hidden rows. Workspaces stay visible.
+# In entity tabs, / filters resources and t edits assigned tags.
+
+identities:
+  example:
+    provider: gcp
+    account: person@example.com
+    cloudSdkConfig: ~/.config/contexthop/gcloud/example
+    adc: ~/.config/contexthop/gcloud/example/application_default_credentials.json
+    provenance: manual
+
+projects:
+  example-development:
+    provider: gcp
+    projectId: example-development
+    identities: [example]
+    tags: [development]
+    provenance: manual
+
+kubernetes:
+  example-development:
+    type: gke
+    project: example-development
+    cluster: development
+    location: us-east1
+    endpoint: dns
+    namespace: default
+    provenance: manual
+
+  acme-sandbox:
+    type: kubeconfig
+    kubeconfig: ~/.kube/acme-sandbox.yaml
+    context: acme-sandbox
+    provenance: manual
+
+docker:
+  local:
+    context: desktop-linux
+    provenance: manual
+
+workspaces:
+  example-development:
+    identity: example
+    project: example-development
+    kubernetes: example-development
+    provenance: manual
+
+  example-terraform:
+    identity: example
+    project: example-development
+    adc: identity
+
+  acme-sandbox:
+    kubernetes: acme-sandbox
+
+  local-docker:
+    docker: local

@@ -1,0 +1,18 @@
+diff --git a/evaluator.go b/evaluator.go
+index 1189ada..b1c8dff 100644
+--- a/evaluator.go
++++ b/evaluator.go
+@@ -115,0 +116 @@ func Evaluate(ctx context.Context, tape string, out io.Writer, opts ...Evaluator
++	renderContext := ctx
+@@ -187 +188 @@ func Evaluate(ctx context.Context, tape string, out io.Writer, opts ...Evaluator
+-	if err := v.Render(ctx); err != nil {
++	if err := v.Render(renderContext); err != nil {
+diff --git a/vhs.go b/vhs.go
+index b5b7783..815b5ea 100644
+--- a/vhs.go
++++ b/vhs.go
+@@ -7 +6,0 @@ import (
+-	"log"
+@@ -570 +569 @@ func (vhs *VHS) Render(ctx context.Context) error {
+-			log.Println(string(out))
++			return fmt.Errorf("render media: %w: %s", err, out)

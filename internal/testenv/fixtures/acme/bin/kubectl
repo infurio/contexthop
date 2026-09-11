@@ -1,0 +1,3 @@
+#!/bin/sh
+# These demos do not connect to a Kubernetes API.
+exit 1

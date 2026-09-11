@@ -1,0 +1,44 @@
+name: Bug report
+description: Report unexpected behaviour in ContextHop.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing issues before reporting a bug. For credential exposure or isolation vulnerabilities, [report privately](https://github.com/infurio/contexthop/security/advisories/new).
+        Use fictional account, project, and cluster names. Never attach credentials, tokens, complete kubeconfigs, or unredacted screenshots.
+  - type: input
+    id: version
+    attributes:
+      label: ContextHop version
+      description: Output of chop version.
+      placeholder: contexthop 0.4.0
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: macOS version, chip architecture, terminal app, and zsh version. Include provider CLI versions if relevant.
+      placeholder: macOS, Apple Silicon, Terminal.app, zsh
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the command or keys used and whether the shell is managed by ContextHop. Use a minimal fictional example.
+    validations:
+      required: true
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: Expected and actual behaviour
+      description: What should have happened, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized output or screenshots
+      description: Optional. Check every line and visible frame for private information before posting.

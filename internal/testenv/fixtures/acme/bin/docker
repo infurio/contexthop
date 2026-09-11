@@ -1,0 +1,5 @@
+#!/bin/sh
+case "$*" in
+  'context show') printf '%s\n' "${DOCKER_CONTEXT:-default}" ;;
+  *) exit 1 ;;
+esac

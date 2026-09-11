@@ -1,0 +1,65 @@
+version: 1
+tags:
+  development: {color: '#4ade80'}
+  staging: {color: '#fbbf24'}
+identities:
+  Acme Engineering:
+    provider: gcp
+    account: alex@acme.example
+    cloudSdkConfig: __FIXTURE__/gcloud/acme
+    provenance: manual
+  Personal:
+    provider: gcp
+    account: alex@example.com
+    cloudSdkConfig: __FIXTURE__/gcloud/personal
+    provenance: manual
+projects:
+  acme-development:
+    provider: gcp
+    projectId: acme-development
+    identities: [Acme Engineering]
+    tags: [development]
+  acme-staging:
+    provider: gcp
+    projectId: acme-staging
+    identities: [Acme Engineering]
+    tags: [staging]
+  personal-lab:
+    provider: gcp
+    projectId: personal-lab
+    identities: [Personal]
+kubernetes:
+  payments-dev:
+    type: gke
+    manualIdentity: Acme Engineering
+    project: acme-development
+    cluster: payments-dev
+    location: us-central1
+    namespace: payments
+    tags: [development]
+  services-dev:
+    type: gke
+    manualIdentity: Acme Engineering
+    project: acme-development
+    cluster: services-dev
+    location: us-central1
+    namespace: default
+  payments-staging:
+    type: gke
+    manualIdentity: Acme Engineering
+    project: acme-staging
+    cluster: payments-staging
+    location: us-central1
+    tags: [staging]
+docker:
+  Local Docker:
+    context: desktop-linux
+  OrbStack:
+    context: orbstack
+workspaces:
+  Payments Dev:
+    identity: Acme Engineering
+    project: acme-development
+    kubernetes: payments-dev
+  Local containers:
+    docker: Local Docker

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Usage and setup documentation
+    url: https://github.com/infurio/contexthop/blob/main/docs/README.md
+    about: Start here for installation, shell integration, credentials, and usage.
+  - name: Report a security vulnerability privately
+    url: https://github.com/infurio/contexthop/security/advisories/new
+    about: Use private reporting for credential exposure and isolation vulnerabilities.

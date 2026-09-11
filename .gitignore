@@ -1,0 +1,20 @@
+/bin/
+/dist/
+/.contexthop/
+/.gocache/
+*.test
+.idea
+
+# Local builds, credentials, and editor state
+/chop
+.env
+.env.*
+!.env.example
+.DS_Store
+/config.yaml
+/config.yml
+*.backup-*
+
+# Python tooling caches can embed absolute local paths
+__pycache__/
+*.py[cod]

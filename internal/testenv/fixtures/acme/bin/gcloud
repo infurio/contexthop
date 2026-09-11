@@ -1,0 +1,12 @@
+#!/bin/sh
+# Fictional provider responses shared by integration tests and recordings.
+case "$*" in
+  'auth print-access-token '*) exit 0 ;;
+  'projects list '*)
+    sleep "${CONTEXTHOP_FIXTURE_DELAY:-0}"
+    printf '%s\n' '[{"projectId":"acme-development","name":"Acme Development","lifecycleState":"ACTIVE"},{"projectId":"acme-staging","name":"Acme Staging","lifecycleState":"ACTIVE"},{"projectId":"acme-analytics","name":"Acme Analytics","lifecycleState":"ACTIVE"}]'
+    ;;
+  'config get-value core/account'*) printf '%s\n' "${CLOUDSDK_CORE_ACCOUNT:-}" ;;
+  'config get-value core/project'*) printf '%s\n' "${CLOUDSDK_CORE_PROJECT:-}" ;;
+  *) exit 1 ;;
+esac

@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Build once, then record selected tapes against an isolated copy of this source.
+set -euo pipefail
+repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+version=""
+if [[ ${1:-} == --version ]]; then
+  version=${2:-}
+  [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]] || {
+    echo 'Expected --version MAJOR.MINOR.PATCH (optionally with a suffix).' >&2; exit 2;
+  }
+  shift 2
+fi
+if [[ ${1:-} == --help ]]; then
+  echo 'Usage: scripts/record-demos [--version 0.5.0] [browse workspace discover shell reuse shared]'
+  echo 'Defaults to all demos and the source development version. VHS_BIN selects the recorder.'
+  exit 0
+fi
+if [[ $# == 0 ]]; then set -- browse workspace discover shell reuse shared; fi
+for demo in "$@"; do
+  case "$demo" in
+    browse|workspace|discover|shell|reuse|shared) ;;
+    *) echo "Unknown demo: $demo" >&2; exit 2 ;;
+  esac
+done
+recorder=$(command -v "${VHS_BIN:-vhs}") || { echo 'VHS is required (or set VHS_BIN).' >&2; exit 1; }
+cd "$repo_dir"
+recording_dir=$(mktemp -d /tmp/contexthop-record.XXXXXXXX)
+trap 'rm -rf -- "$recording_dir"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+build_flags=()
+if [[ -n "$version" ]]; then build_flags=(-ldflags "-X main.version=$version"); fi
+GOTOOLCHAIN="go$(cat .go-version)" GOCACHE="${GOCACHE:-$repo_dir/.gocache}" \
+  go build -trimpath -buildvcs=false "${build_flags[@]}" -o "$recording_dir/chop" ./cmd/contexthop
+GOTOOLCHAIN="go$(cat .go-version)" GOCACHE="${GOCACHE:-$repo_dir/.gocache}" \
+  go build -trimpath -buildvcs=false -o "$recording_dir/fixture-env" ./internal/testenv/fixturecmd
+export CONTEXTHOP_FIXTURE_RUNNER="$recording_dir/fixture-env"
+export CONTEXTHOP_DEMO_BINARY="$recording_dir/chop"
+"$CONTEXTHOP_DEMO_BINARY" version
+for demo in "$@"; do
+  "$recorder" "docs/demos/$demo.tape"
+done

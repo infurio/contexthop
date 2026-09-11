@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Build ContextHop and open a Zsh session bound to this checkout.
+set -euo pipefail
+
+repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+command -v zsh >/dev/null || { echo 'Development sessions require zsh.' >&2; exit 1; }
+make -C "$repo_dir" build
+
+dev_rc_dir="$(mktemp -d "${TMPDIR:-/tmp}/contexthop-dev.XXXXXXXX")"
+trap 'rm -rf -- "$dev_rc_dir"' EXIT
+
+# Keep a temporary startup overlay for the entire development session, including
+# nested Zsh and ContextHop subshells. User startup files still run normally.
+for startup in .zshenv .zprofile .zshrc .zlogin .zlogout; do
+  cat > "$dev_rc_dir/$startup" <<'ZSH'
+if [[ $CONTEXTHOP_DEV_HAD_ZDOTDIR == 1 ]]; then
+  export ZDOTDIR=$CONTEXTHOP_DEV_USER_ZDOTDIR
+else
+  unset ZDOTDIR
+fi
+ZSH
+  printf '[[ ! -f ${ZDOTDIR:-$HOME}/%s ]] || source "${ZDOTDIR:-$HOME}/%s"\n' "$startup" "$startup" >> "$dev_rc_dir/$startup"
+  cat >> "$dev_rc_dir/$startup" <<'ZSH'
+# Honour startup files that redirect ZDOTDIR, then restore the development overlay.
+export CONTEXTHOP_DEV_HAD_ZDOTDIR=${+ZDOTDIR}
+export CONTEXTHOP_DEV_USER_ZDOTDIR=${ZDOTDIR:-$HOME}
+export PATH="$CONTEXTHOP_DEV_REPO/bin:$PATH"
+export CONTEXTHOP_BINARY="$CONTEXTHOP_DEV_REPO/bin/chop"
+export CONTEXTHOP_ORIGINAL_ZDOTDIR=$CONTEXTHOP_DEV_RC_DIR
+export ZDOTDIR=$CONTEXTHOP_DEV_RC_DIR
+rehash
+ZSH
+  if [[ "$startup" == .zshrc || "$startup" == .zlogin ]]; then
+    cat >> "$dev_rc_dir/$startup" <<'ZSH'
+# Aliases and functions installed by a Homebrew hook must not win here.
+unalias chop 2>/dev/null || true
+unfunction chop 2>/dev/null || true
+eval "$("$CONTEXTHOP_DEV_REPO/bin/chop" shell-init zsh --in-place)"
+ZSH
+  fi
+  if [[ "$startup" == .zshrc ]]; then
+    cat >> "$dev_rc_dir/$startup" <<'ZSH'
+if [[ -z ${CONTEXTHOP_DEV_STARTED:-} ]]; then
+  export CONTEXTHOP_DEV_STARTED=1
+  cd -- "$CONTEXTHOP_DEV_REPO"
+  print -r -- "ContextHop development shell: $CONTEXTHOP_BINARY"
+  print -r -- 'Run chop to start, make build after edits, and exit to return.'
+fi
+ZSH
+  fi
+done
+
+CONTEXTHOP_DEV_REPO="$repo_dir" \
+CONTEXTHOP_DEV_RC_DIR="$dev_rc_dir" \
+CONTEXTHOP_DEV_HAD_ZDOTDIR="${ZDOTDIR+1}" \
+CONTEXTHOP_DEV_USER_ZDOTDIR="${ZDOTDIR:-$HOME}" \
+CONTEXTHOP_DEV_STARTED= \
+PATH="$repo_dir/bin:$PATH" \
+CONTEXTHOP_BINARY="$repo_dir/bin/chop" \
+ZDOTDIR="$dev_rc_dir" zsh -i
