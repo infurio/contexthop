@@ -6,6 +6,9 @@
 
 `chop` and `chop config` open **Workspaces**. Tab visits Identities, Projects,
 Kubernetes, and Docker. Lists are alphabetical; `/` filters names and metadata.
+Starting `chop` highlights the last successfully selected visible resource in
+the opening tab.
+This does not apply a context until you confirm it.
 
 The header separates **Active**, the observed terminal context, from
 **Selected**, the context that launch and save will use. On regular-sized
@@ -191,28 +194,50 @@ To remove integration from a following shell and restore its original bindings,
 run `eval "$(chop shell-init zsh)"` and remove the startup line.
 
 Managed child shells already provide integration. Applying preserves the working
-directory and unrelated variables while updating managed bindings and the prompt.
-Prompt item colours match each item’s first tag in the TUI’s alphabetical tag
-order. Workspace and resource names use their own tag colours; untagged items
-use cyan. The `PROD` marker remains visible but does not override tag colours.
-Namespace and separator colours remain consistent across contexts. Colours are
-saved with the session; reapply a selection after editing its tags or colours.
-`NO_COLOR` and `TERM=dumb` disable prompt colours.
+directory and unrelated variables while updating managed bindings.
 
-Choose whether integrated terminals show the context prefix:
+Choose how integrated terminals display the activated selection:
 
 ```sh
-chop config prompt-prefix off  # hide it
-chop config prompt-prefix on   # show it (default)
-chop config prompt-prefix      # print the saved setting
+chop config display summary  # show once at startup and when selection changes (default)
+chop config display prompt   # keep the selection in the prompt
+chop config display off      # no automatic display
+chop config display          # print the effective mode
 ```
 
-This saves `promptPrefix: off` or `promptPrefix: on` in the configuration.
-All integrated terminals using that configuration pick up the setting at their
-next prompt refresh, including already-open sessions. It only controls the
-visible prefix; context switching and completion remain active. After upgrading
-from a version without this option, reload shell integration in existing shells
-once so they can honor it.
+Summary mode leaves your prompt alone. It shows only the identity, project,
+Kubernetes context/namespace and Docker context that the selection actually sets,
+plus its user-defined tags. Unset components are omitted. An identity-only
+selection, for example, shows:
+
+```text
+ContextHop
+Identity: alex@acme.example
+Tags: Engineering
+```
+
+The summary appears at the first interactive prompt, including in a new managed
+subshell, and after a changed Apply here or shared-config adoption. Unchanged
+selections and canceled operations do not repeat it. Scripts and redirected
+output receive no automatic summary. Use `chop status` for the full status.
+
+Prompt mode shows one label plus the selection's user-defined tags, for example
+`[Payments Dev|development]`. It uses the workspace name when selected; otherwise
+it uses the Kubernetes, Docker, project or identity label, in that order. A
+standalone Kubernetes label includes its namespace when it is not `default`.
+The full component breakdown remains available in summary mode and `chop status`.
+Off disables automatic display while keeping context switching and completion active.
+The setting is saved as `display: summary`, `display: prompt` or `display: off`.
+All integrated terminals using that configuration pick it up at their next prompt.
+After upgrading, reload shell integration once in already-open terminals.
+
+Summary labels and separators are muted. Resource values match each item's first
+tag in alphabetical order; untagged items use cyan. Tags retain their exact
+user-defined names and colours, with no synthetic markers or special tag matching.
+Colours and tags are saved with the session; reapply a selection after editing
+them, or to add tag labels to sessions created by older versions.
+`chop status` uses the same label, resource and tag colours for its full report.
+`NO_COLOR` and `TERM=dumb` disable colours; redirected status output is plain text.
 
 Prompt integration preserves the shell's existing `PROMPT_SUBST` setting.
 When enabled (as in Oh My Zsh), the context label uses a stable variable reference

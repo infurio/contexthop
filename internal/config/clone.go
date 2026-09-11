@@ -9,7 +9,7 @@ import (
 func (source Config) Clone() Config {
 	result := New()
 	result.Version = source.Version
-	result.PromptPrefix = source.PromptPrefix
+	result.Display = source.Display
 	result.Tags = maps.Clone(source.Tags)
 	result.Discovery = CloneDiscovery(source.Discovery)
 	result.LegacyDestinations = map[string]Destination{}

@@ -76,7 +76,7 @@ check_prompt() {
   [[ $PROMPT == "${mark_a}${fragment}${base}${mark_b}" ]] || exit 10
   [[ $options[promptsubst] == $original_options ]] || exit 11
   [[ $PS2 == 'continuation> ' && $RPROMPT == right ]] || exit 12
-  [[ ${(j: :)precmd_functions} == 'fixture_hook _chop_refresh_prompt' ]] || exit 18
+  [[ ${(j: :)precmd_functions} == 'fixture_hook _chop_refresh_prompt _chop_show_summary' ]] || exit 18
   [[ ${(j: :)preexec_functions} == 'fixture_hook _chop_sync_default' ]] || exit 19
   # Verify substitution actually renders the current label, including colors.
   if [[ -o promptsubst ]]; then

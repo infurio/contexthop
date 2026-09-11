@@ -13,35 +13,8 @@ import (
 	"golang.org/x/term"
 )
 
-func runPromptPrefixConfig(path string, args []string) error {
-	if len(args) > 1 || len(args) == 1 && args[0] != "on" && args[0] != "off" {
-		return fmt.Errorf("usage: chop config prompt-prefix [on|off]")
-	}
-	cfg, err := config.Load(path)
-	if err != nil {
-		return err
-	}
-	if len(args) == 0 {
-		value := cfg.PromptPrefix
-		if value == "" {
-			value = "on"
-		}
-		fmt.Println(value)
-		return nil
-	}
-	plan, err := catalog.PlanPromptPrefix(cfg, args[0])
-	if err != nil {
-		return err
-	}
-	if err := catalog.Apply(path, plan); err != nil {
-		return err
-	}
-	fmt.Printf("Prompt prefix %s. Integrated terminals using this config update at their next prompt.\n", args[0])
-	return nil
-}
-
 func configuredPromptPrefix() string {
-	if cfg, err := loadConfig(); err == nil && cfg.PromptPrefix == "off" {
+	if cfg, err := loadConfig(); err != nil || cfg.DisplayMode() != "prompt" {
 		return ""
 	}
 	return session.CurrentZshPromptPrefix()
@@ -127,4 +100,34 @@ func configPath() (string, error) {
 
 func isTerminal(file *os.File) bool {
 	return file != nil && term.IsTerminal(int(file.Fd()))
+}
+
+func runDisplayConfig(path string, args []string) error {
+	if len(args) > 1 || len(args) == 1 && args[0] != "summary" && args[0] != "prompt" && args[0] != "off" {
+		return fmt.Errorf("usage: chop config display [summary|prompt|off]")
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		return err
+	}
+	if len(args) == 0 {
+		fmt.Println(cfg.DisplayMode())
+		return nil
+	}
+	plan, err := catalog.PlanDisplay(cfg, args[0])
+	if err != nil {
+		return err
+	}
+	if err = catalog.Apply(path, plan); err != nil {
+		return err
+	}
+	fmt.Printf("Display mode %s. Integrated terminals update at their next prompt.\n", args[0])
+	return nil
+}
+func configuredSummary() string {
+	cfg, err := loadConfig()
+	if err != nil || cfg.DisplayMode() != "summary" {
+		return ""
+	}
+	return session.CurrentSummary()
 }

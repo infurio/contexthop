@@ -366,7 +366,7 @@ func currentContextEquivalent(resolved resolver.Resolved) (bool, error) {
 	if err != nil {
 		return false, nil
 	}
-	if manifest.WorkspaceName != resolved.WorkspaceName || manifest.Production != resolved.Production || !maps.Equal(manifest.PromptColors, resolved.PromptColors) {
+	if manifest.WorkspaceName != resolved.WorkspaceName || !maps.Equal(manifest.PromptColors, resolved.PromptColors) || !maps.Equal(manifest.DisplayTags, resolved.DisplayTags) {
 		return false, nil
 	}
 

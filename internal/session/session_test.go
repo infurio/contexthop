@@ -272,11 +272,11 @@ func TestPromptPrefixIgnoresLegacyRisk(t *testing.T) {
 		Destination: "generated-name", KubernetesLabel: "Team-A-Dev", Risk: "production",
 		Expected: state.Component{Kubernetes: "gke_project_region_cluster", Namespace: "default"},
 	}
-	if got := promptPrefix(manifest); got != "[Team-A-Dev|default] " {
+	if got := promptPrefix(manifest); got != "[Team-A-Dev] " {
 		t.Fatalf("prompt prefix = %q", got)
 	}
 	manifest.Risk = "sandbox"
-	if got := promptPrefix(manifest); got != "[Team-A-Dev|default] " {
+	if got := promptPrefix(manifest); got != "[Team-A-Dev] " {
 		t.Fatalf("sandbox prompt prefix = %q", got)
 	}
 	manifest = state.Manifest{Destination: "local", Expected: state.Component{Docker: "orbstack"}}
@@ -861,21 +861,27 @@ printf '%s\n' "export DOCKER_CONTEXT='selected-context'" > "$CONTEXTHOP_ACTIVATI
 }
 
 func TestPromptLabelsStayLiteralInZsh(t *testing.T) {
-	for _, color := range []bool{false, true} {
-		prefix := formatPromptPrefix(state.Manifest{
-			WorkspaceName:   "$(printf WORKSPACE_EXECUTED)",
-			KubernetesLabel: "`printf CLUSTER_EXECUTED`%n",
-			Expected:        state.Component{Kubernetes: "review"},
-		}, "$(printf NAMESPACE_EXECUTED)%n", color)
-		command := exec.Command("zsh", "-f", "-c", `setopt promptsubst; PROMPT=$REVIEW_PREFIX; print -P -- "$PROMPT"`)
-		command.Env = append(os.Environ(), "REVIEW_PREFIX="+prefix)
-		output, err := command.CombinedOutput()
-		if err != nil {
-			t.Fatalf("render prompt: %v: %s", err, output)
-		}
-		for _, literal := range []string{"?(printf WORKSPACE_EXECUTED)", "?printf CLUSTER_EXECUTED?%n", "?(printf NAMESPACE_EXECUTED)%n"} {
-			if !strings.Contains(string(output), literal) {
-				t.Errorf("color=%v: prompt expanded label, output=%q; want %q", color, output, literal)
+	for _, workspace := range []string{"$(printf WORKSPACE_EXECUTED)", ""} {
+		for _, color := range []bool{false, true} {
+			prefix := formatPromptPrefix(state.Manifest{
+				WorkspaceName:   workspace,
+				KubernetesLabel: "`printf CLUSTER_EXECUTED`%n",
+				Expected:        state.Component{Kubernetes: "review"},
+			}, "$(printf NAMESPACE_EXECUTED)%n", color)
+			command := exec.Command("zsh", "-f", "-c", `setopt promptsubst; PROMPT=$REVIEW_PREFIX; print -P -- "$PROMPT"`)
+			command.Env = append(os.Environ(), "REVIEW_PREFIX="+prefix)
+			output, err := command.CombinedOutput()
+			if err != nil {
+				t.Fatalf("render prompt: %v: %s", err, output)
+			}
+			literals := []string{"?printf CLUSTER_EXECUTED?%n", "?(printf NAMESPACE_EXECUTED)%n"}
+			if workspace != "" {
+				literals = []string{"?(printf WORKSPACE_EXECUTED)"}
+			}
+			for _, literal := range literals {
+				if !strings.Contains(string(output), literal) {
+					t.Errorf("color=%v: prompt expanded label, output=%q; want %q", color, output, literal)
+				}
 			}
 		}
 	}
