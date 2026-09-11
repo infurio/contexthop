@@ -5,7 +5,8 @@ binary, tests it, updates Homebrew, and publishes the release notes in both
 repositories. You do not need to build or upload the release yourself.
 
 The normal process is: **choose a version → prepare a PR → merge → push the tag →
-wait for GitHub to finish**. Run the commands below from the repository root.
+wait for GitHub to finish**. Record the request start time and report total elapsed
+time through final verification. Run the commands below from the repository root.
 You’ll need Go, Zsh, Git, an authenticated `gh` CLI, and Gitleaks.
 
 ## 1. Choose the version and prepare the PR
@@ -15,7 +16,7 @@ Check which versions already exist:
 ```sh
 gh release list --repo infurio/contexthop
 gh release list --repo infurio/homebrew-tap
-git ls-remote --tags origin
+git ls-remote --tags https://github.com/infurio/contexthop.git
 ```
 
 Choose an unused `vMAJOR.MINOR.PATCH`: usually a patch for fixes or a minor version
@@ -26,16 +27,22 @@ upgrade instructions. GitHub uses this file for both release pages. Update other
 docs as needed. If Go or dependencies changed, also run
 `python3 scripts/update_notices.py` and review `THIRD_PARTY_NOTICES`.
 
-Run the checks and smoke-test the affected features. The
-[verification checklist](#release-verification) below helps you choose what to test.
+Reuse checks already completed for the unchanged code. A release request does
+not require another local `make ci`, race suite, or release-tooling test run:
+required PR CI performs those checks. If a specific changed behavior has not been
+verified, run its targeted check. Use the [verification checklist](#release-verification)
+to identify missing coverage, not to repeat unrelated tests.
+
+Review the diff and fictional fixture provenance before pushing. Run
+`git diff --check`, then commit, push over authenticated HTTPS and open the PR.
+Keep credentials out of command arguments and logs; use the existing `gh` login:
 
 ```sh
-make ci
-python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
-git diff --check
+git -c credential.helper= -c 'credential.helper=!gh auth git-credential' \
+  push https://github.com/infurio/contexthop.git HEAD
 ```
 
-Open a PR, include the test results, and merge after **Required checks** passes.
+Include existing test results in the PR and merge after **Required checks** passes.
 Release workflow changes must be merged too: the tag uses the workflow in its commit.
 
 Demo recording is separate. If a demo needs updating, use
@@ -46,7 +53,7 @@ do not record demos.
 
 ```sh
 git switch main
-git pull --ff-only
+git pull --ff-only https://github.com/infurio/contexthop.git main
 git status --short
 git log -1 --format='%H %s'
 ```
@@ -82,7 +89,8 @@ Replace `vX.Y.Z` with your chosen version. Recheck that it is still unused, then
 ```sh
 release_tag=vX.Y.Z
 git tag -a "$release_tag" -m "ContextHop $release_tag"
-git push origin "refs/tags/$release_tag"
+git -c credential.helper= -c 'credential.helper=!gh auth git-credential' \
+  push https://github.com/infurio/contexthop.git "refs/tags/$release_tag"
 ```
 
 **The push starts publication.** The tag supplies the binary’s version, so no source
@@ -97,9 +105,10 @@ or watch it from the terminal:
 ```sh
 gh run list --workflow release.yml --branch "$release_tag"
 # Replace RUN_ID with the ID shown for this release.
-gh run watch RUN_ID --exit-status
+gh run watch RUN_ID --exit-status --interval 30
 ```
 
+Use one watcher per run; do not add separate status polling loops.
 Wait for **all five jobs**, including `source-release`, to pass. Then check both pages:
 
 ```sh
@@ -166,9 +175,10 @@ available. Release runs are serialized, but are not guaranteed FIFO ordering.
 
 - Wait for the exact merged commit's full main CI to pass before tagging. Tagging
   earlier makes the candidate job run the full suite again.
-- Reuse local check results while the tested code is unchanged. Run missing
-  release checks (such as race and publication-guard tests) once; repeat checks
-  when code changes or a failure needs verification.
+- Reuse local check results while the tested code is unchanged. Required PR CI
+  supplies full, race and publication-guard checks; do not duplicate them locally
+  as a release prerequisite. Repeat only checks invalidated by changes or needed
+  to diagnose a failure.
 - Publish the candidate artifact built by CI rather than building a second local
   candidate for upload. Packaging locally is an optional debugging step.
 - Keep upload and integrity checks on Linux; reserve macOS runners for native
