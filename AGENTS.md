@@ -26,26 +26,11 @@ For privacy audits, keep private comparison inputs and reports outside the
 repository and suppress matched values in output. Never add a real identifier to
 a regression test, denylist, or scanner configuration, even to prevent recurrence.
 
-# Keep changes and releases simple
+# Development and release
 
-- Implement the smallest complete solution. Do not add compatibility layers,
-  new abstractions, dependencies, or approval steps without a concrete need.
-  Before v1, remove superseded commands and settings rather than retaining aliases.
-- A release request is publication of the prepared changes, not a fresh development
-  cycle. Do not expand its scope except to fix a demonstrated release blocker.
-- Run relevant tests locally while developing and reuse successful results for
-  unchanged code. Releases do not rerun test suites or wait for GitHub CI.
-- Push directly to main for solo development; PRs and remote CI are optional.
-- Review publication content before pushing. Preserve privacy review, build the
-  exact committed source, and verify the archive and native binary locally.
-- Publish with scripts/release-local. Do not add runner waits or Homebrew
-  installation loops to the publication path.
-- Use authenticated HTTPS for GitHub operations. Never print credentials or
-  change credentials speculatively after a transport failure.
-- Use one watcher per CI/release run with a 30-second interval. Avoid overlapping
-  watches, separate repeated status queries, or additional sleep/poll loops.
-- Measure release time from the user's request through verified completion.
-  Report that total, including local work and waits. If it exceeds ten minutes,
-  identify the current delay and next action; do not present publication-only
-  time as the release duration. Ten minutes is an investigation threshold, not
-  a guarantee about external runner availability.
+Run isolated tests locally with `make check`, then commit and publish with
+`make release VERSION=vX.Y.Z`. Reuse successful tests for unchanged code.
+Push directly to main. No PR, remote CI, runner waits, or account permission
+changes are required. Use the existing Git transport and GitHub CLI login.
+Keep the implementation small; before v1, remove superseded code rather than
+adding compatibility layers. Report total elapsed release time, including waits.

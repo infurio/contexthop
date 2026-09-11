@@ -1,3 +1,150 @@
-#!/usr/bin/env bash
-set -euo pipefail
-exec python3 "$(dirname "$0")/release/local_release.py" "$@"
+#!/usr/bin/env python3
+"""Build a committed version, publish it, and update Homebrew. Tests run separately."""
+import argparse
+import base64
+import hashlib
+import json
+import os
+from pathlib import Path
+import platform
+import re
+import subprocess
+import tarfile
+import tempfile
+import time
+
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE = "infurio/contexthop"
+TAP = "infurio/homebrew-tap"
+VERSION = r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+
+
+def run(*args, **kwargs):
+    return subprocess.run(args, check=True, **kwargs)
+
+
+def output(*args, **kwargs):
+    return subprocess.check_output(args, text=True, **kwargs).strip()
+
+
+def formula(version, url, digest):
+    return f'''class Contexthop < Formula
+  desc "Isolated terminal contexts for Google Cloud, Kubernetes, and Docker"
+  homepage "https://github.com/{SOURCE}"
+  version "{version}"
+  license "MIT"
+  depends_on :macos
+  depends_on arch: :arm64
+  url "{url}"
+  sha256 "{digest}"
+
+  def install
+    bin.install "chop"
+    doc.install "LICENSE", "THIRD_PARTY_NOTICES"
+  end
+
+  test do
+    assert_equal "contexthop #{{version}}", shell_output("#{{bin}}/chop version").strip
+    assert_match "Usage:", shell_output("#{{bin}}/chop help")
+  end
+end
+'''
+
+
+def build(source, out, version):
+    binary = out / "chop"
+    env = dict(os.environ, GOOS="darwin", GOARCH="arm64", CGO_ENABLED="0",
+               GOTOOLCHAIN="go" + (source / ".go-version").read_text().strip(),
+               GOCACHE=str(ROOT / ".gocache"))
+    run("go", "build", "-trimpath", "-buildvcs=false", "-ldflags",
+        f"-s -w -X main.version={version}", "-o", str(binary), "./cmd/contexthop", cwd=source, env=env)
+    # Smoke tests cannot read the developer's configuration or active session.
+    with tempfile.TemporaryDirectory() as home:
+        smoke = {"HOME": home, "PATH": "/usr/bin:/bin", "TERM": "dumb",
+                 "CONTEXTHOP_CACHE_DIR": home + "/cache"}
+        if output(str(binary), "version", env=smoke) != f"contexthop {version}":
+            raise ValueError("binary version mismatch")
+        if "Usage:" not in output(str(binary), "help", env=smoke):
+            raise ValueError("binary help smoke test failed")
+        run("zsh", "-f", "-c", 'eval "$("$1" shell-init zsh --in-place)"; chop version', "_", str(binary), env=smoke)
+    archive = out / f"contexthop_{version}_darwin_arm64.tar.gz"
+    with tarfile.open(archive, "w:gz") as bundle:
+        for path in (binary, source / "LICENSE", source / "THIRD_PARTY_NOTICES"):
+            info = bundle.gettarinfo(str(path), path.name)
+            info.uid = info.gid = info.mtime = 0
+            info.uname = info.gname = ""
+            info.mode = 0o755 if path == binary else 0o644
+            with path.open("rb") as contents:
+                bundle.addfile(info, contents)
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    (out / "checksums.txt").write_text(f"{digest}  {archive.name}\n")
+    url = f"https://github.com/{TAP}/releases/download/v{version}/{archive.name}"
+    (out / "contexthop.rb").write_text(formula(version, url, digest))
+    binary.unlink()
+    return archive
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("version", help="unused tag, e.g. v0.7.5")
+    parser.add_argument("--notes", type=Path, help="optional reviewed release notes")
+    parser.add_argument("--prepare", action="store_true", help="build only; no GitHub access")
+    args = parser.parse_args()
+    if not re.fullmatch(VERSION, args.version):
+        parser.error("use vMAJOR.MINOR.PATCH")
+    os.chdir(ROOT)
+    if (platform.system(), platform.machine()) != ("Darwin", "arm64"):
+        parser.error("run on an Apple Silicon Mac")
+    if output("git", "branch", "--show-current") != "main" or output("git", "status", "--porcelain"):
+        parser.error("review and commit changes on main first")
+    start = time.monotonic()
+    tag, version = args.version, args.version[1:]
+    sha = output("git", "rev-parse", "HEAD")
+    notes = args.notes.read_text() if args.notes else f"ContextHop {version}\n"
+    notes += f"\nSource commit: {sha}\n\nDownloads: https://github.com/{TAP}/releases/tag/{tag}\n"
+    endpoint = f"repos/{TAP}/contents/Formula/contexthop.rb"
+    if not args.prepare:
+        # Fail before building on duplicate versions, API errors or downgrades.
+        for repo in (SOURCE, TAP):
+            tags = output("gh", "api", "--paginate", f"repos/{repo}/releases?per_page=100", "--jq", ".[].tag_name").splitlines()
+            if tag in tags:
+                raise ValueError("release already exists; do not overwrite it")
+        if output("git", "ls-remote", "--tags", "origin", f"refs/tags/{tag}"):
+            raise ValueError("tag already exists; inspect the previous release attempt")
+        current = json.loads(output("gh", "api", endpoint))
+        old = re.search(r'^  version "([0-9.]+)"$', base64.b64decode(current["content"]).decode(), re.M)
+        if not old or tuple(map(int, old[1].split('.'))) >= tuple(map(int, version.split('.'))):
+            raise ValueError("version must be newer than the tap")
+    out = ROOT / "dist" / tag
+    out.mkdir(parents=True, exist_ok=False)
+    with tempfile.TemporaryDirectory(prefix="contexthop-release-") as temp:
+        source = Path(temp) / "source"
+        source.mkdir()
+        archive = Path(temp) / "source.tar"
+        run("git", "archive", "-o", str(archive), sha)
+        with tarfile.open(archive) as bundle:
+            bundle.extractall(source, filter="data")
+        run("gitleaks", "dir", "--redact", "--no-banner", str(source))
+        asset = build(source, out, version)
+    (out / "notes.md").write_text(notes)
+    if args.prepare:
+        print(f"Prepared {out} in {time.monotonic() - start:.1f}s. Nothing published.")
+        return
+    run("git", "push", "--atomic", "origin", f"{sha}:refs/heads/main", f"{sha}:refs/tags/{tag}")
+    run("gh", "release", "create", tag, "--repo", TAP, "--title", f"ContextHop {tag}",
+        "--notes-file", str(out / "notes.md"), str(asset), str(out / "checksums.txt"))
+    payload = {"message": f"Update contexthop to {tag}", "sha": current["sha"],
+               "content": base64.b64encode((out / "contexthop.rb").read_bytes()).decode()}
+    run("gh", "api", "--method", "PUT", endpoint, "--input", "-",
+        input=json.dumps(payload), text=True, stdout=subprocess.DEVNULL)
+    print(f"{tag} is available through Brew in {time.monotonic() - start:.1f}s.", flush=True)
+    run("gh", "release", "create", tag, "--repo", SOURCE, "--verify-tag",
+        "--title", f"ContextHop {tag}", "--notes-file", str(out / "notes.md"))
+    print("brew update && brew upgrade infurio/tap/contexthop")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        raise SystemExit(f"Stopped: {error}. Completed steps are not rolled back; see RELEASE.md.")

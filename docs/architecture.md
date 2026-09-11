@@ -16,7 +16,7 @@ startup files stay unchanged; the development shell uses your existing catalog
 and credentials. Nested/login Zsh shells retain the checkout binary. Check with
 `print -r -- "$CONTEXTHOP_BINARY"`.
 
-For a manual build, use `make check` and add `$PWD/bin` to PATH.
+For a manual build, use `make build` and add `$PWD/bin` to PATH.
 [.go-version](../.go-version) is the toolchain source of truth; `TOOLCHAIN`
 can override it locally.
 
@@ -158,13 +158,11 @@ contracts when extending or refactoring the code:
 
 ```sh
 make check
-make ci
-python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
 git diff --check
 ```
 
-`make check` tests, vets, and builds. `make ci` additionally requires macOS/zsh,
-checks formatting, and runs race tests. Use focused regressions for changed
+`make check` runs isolated race tests, vet, formatting and script tests on macOS
+with Zsh. `make build` builds the development binary. Use focused regressions for changed
 behavior; do not treat historical audit results as current verification.
 
 For fictional controller/UI captures:
