@@ -147,7 +147,7 @@ These details are useful when changing the release tooling or setting it up agai
 | Job | What it does |
 | --- | --- |
 | `candidate` | Validates the tag, main ancestry, and notes; checks CI evidence; builds, verifies, and tests a local Homebrew install. |
-| `publish` | Rechecks the same archive, uploads it as a draft, compares downloaded assets, then publishes. |
+| `publish` | On Linux, rechecks archive integrity, uploads it as a draft, compares downloaded assets, then publishes. Native execution already passed in `candidate`. |
 | `update-tap` | Tests installation through public download URLs, then updates the formula. |
 | `verify-install` | Installs from the public tap on a fresh Mac runner. |
 | `source-release` | Copies the notes and adds the binary download link in the source repository. |
@@ -161,6 +161,22 @@ The archive is built once and reused throughout. It contains `chop`, `LICENSE`,
 and `THIRD_PARTY_NOTICES`, with no configuration or credentials. Provider CLIs are
 installed separately. New releases target macOS ARM64; older Intel assets remain
 available. Release runs are serialized, but are not guaranteed FIFO ordering.
+
+### Keeping releases fast
+
+- Wait for the exact merged commit's full main CI to pass before tagging. Tagging
+  earlier makes the candidate job run the full suite again.
+- Reuse local check results while the tested code is unchanged. Run missing
+  release checks (such as race and publication-guard tests) once; repeat checks
+  when code changes or a failure needs verification.
+- Publish the candidate artifact built by CI rather than building a second local
+  candidate for upload. Packaging locally is an optional debugging step.
+- Keep upload and integrity checks on Linux; reserve macOS runners for native
+  execution and Homebrew installation. Keep the fresh-runner public tap check.
+- Diagnose retries from the failed job's log and rerun failed jobs only.
+
+Runner queue time and GitHub/Homebrew network latency still affect duration.
+Compare job and step timestamps on each release before removing further checks.
 
 ### Local packaging
 

@@ -19,7 +19,7 @@ var version = "0.1.0-dev"
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "_prompt" {
-		fmt.Print(session.CurrentZshPromptPrefix())
+		fmt.Print(configuredPromptPrefix())
 		return
 	}
 	if len(os.Args) < 2 || (os.Args[1] != "_shared-sync" && os.Args[1] != "_shell-baseline") {
@@ -53,7 +53,7 @@ func run(args []string) error {
 	}
 
 	if len(args) > 0 && args[0] == "_prompt" {
-		fmt.Print(session.CurrentZshPromptPrefix())
+		fmt.Print(configuredPromptPrefix())
 		return nil
 	}
 	if len(args) > 0 && args[0] == "_cleanup-session" {

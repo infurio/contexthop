@@ -7,9 +7,45 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/infurio/contexthop/internal/catalog"
 	"github.com/infurio/contexthop/internal/config"
+	"github.com/infurio/contexthop/internal/session"
 	"golang.org/x/term"
 )
+
+func runPromptPrefixConfig(path string, args []string) error {
+	if len(args) > 1 || len(args) == 1 && args[0] != "on" && args[0] != "off" {
+		return fmt.Errorf("usage: chop config prompt-prefix [on|off]")
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		return err
+	}
+	if len(args) == 0 {
+		value := cfg.PromptPrefix
+		if value == "" {
+			value = "on"
+		}
+		fmt.Println(value)
+		return nil
+	}
+	plan, err := catalog.PlanPromptPrefix(cfg, args[0])
+	if err != nil {
+		return err
+	}
+	if err := catalog.Apply(path, plan); err != nil {
+		return err
+	}
+	fmt.Printf("Prompt prefix %s. Integrated terminals using this config update at their next prompt.\n", args[0])
+	return nil
+}
+
+func configuredPromptPrefix() string {
+	if cfg, err := loadConfig(); err == nil && cfg.PromptPrefix == "off" {
+		return ""
+	}
+	return session.CurrentZshPromptPrefix()
+}
 
 func editConfig(path string, recovery ...string) error {
 	source := path

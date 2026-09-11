@@ -135,6 +135,9 @@ contracts when extending or refactoring the code:
 - Store credential references, never credential contents. Diagnostics must not
   leak secrets or authentication callbacks. Noninteractive failure gives recovery
   instructions instead of opening a browser.
+- Shell integration must coexist with terminal and theme hooks: preserve shell
+  options, terminal markers, secondary/right prompts, and later theme edits.
+  Prefer a stable prompt reference over rewriting the prompt on each refresh.
 - Keep state understandable without color, tag colors intact when highlighted,
   and Help usable on narrow/resized terminals. Completed background results must
   survive cancellation and errors.
