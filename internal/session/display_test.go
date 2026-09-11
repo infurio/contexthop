@@ -34,17 +34,18 @@ func TestSelectionDisplayOnlyUsesSelectedComponentsAndTags(t *testing.T) {
 	}
 	m := state.Manifest{Version: 1, SessionID: "acme-display", DisplayTags: r.DisplayTags, PromptColors: r.PromptColors,
 		Expected: state.Component{Identity: identity.Account, Docker: disabledDockerContext}}
-	want := "ContextHop 1.2.3\nIdentity: alex@acme.example\nTags: Engineering"
-	if got := formatSummary(m, "inherited-namespace", false, "1.2.3"); got != want {
+	want := "alex@acme.example · Engineering"
+	if got := formatSummary(m, "inherited-namespace", false); got != want {
 		t.Fatalf("summary = %q", got)
 	}
 	if got := formatPromptPrefix(m, "inherited-namespace", false); got != "[alex@acme.example|Engineering] " {
 		t.Fatalf("prompt = %q", got)
 	}
-	colored := formatSummary(m, "", true, "1.2.3")
-	if !strings.HasPrefix(colored, "\x1b[38;5;245mContextHop 1.2.3\x1b[0m\n") || !strings.Contains(colored, "\x1b[38;2;18;52;86mEngineering") || !strings.Contains(colored, "\x1b[38;5;245mIdentity: ") {
+	colored := formatSummary(m, "", true)
+	if !strings.HasPrefix(colored, "\x1b[38;2;18;52;86malex@acme.example") || !strings.Contains(colored, "\x1b[38;2;18;52;86mEngineering") {
 		t.Fatalf("colors = %q", colored)
 	}
+
 	data, _ := json.Marshal(m)
 	path := filepath.Join(env.Root, "session.json")
 	if err := os.WriteFile(path, data, 0600); err != nil {
@@ -60,22 +61,34 @@ func TestSelectionDisplayOnlyUsesSelectedComponentsAndTags(t *testing.T) {
 			} else {
 				t.Setenv(setting, "dumb")
 			}
-			if got := CurrentSummary("1.2.3"); got != want {
+			if got := CurrentSummary(); got != "Pinned · "+want {
 				t.Fatalf("plain summary = %q", got)
 			}
 		})
 	}
+
+	for _, tc := range []struct{ scope, root, label string }{
+		{"shared", "", "Shared"}, {"local", "", "Pinned"},
+		{"local", "fixture-root", "Subshell"}, {"shared", "fixture-root", "Shared"},
+	} {
+		t.Setenv(ScopeEnv, tc.scope)
+		t.Setenv("CONTEXTHOP_ROOT_SESSION_FILE", tc.root)
+		t.Setenv("NO_COLOR", "1")
+		if got := CurrentSummary(); got != tc.label+" · "+want {
+			t.Fatalf("scope %s: %q", tc.label, got)
+		}
+	}
 	m.Expected = state.Component{Docker: disabledDockerContext}
-	if formatSummary(m, "", true, "1.2.3") != "" || formatPromptPrefix(m, "", true) != "" {
+	if formatSummary(m, "", true) != "" || formatPromptPrefix(m, "", true) != "" {
 		t.Fatal("empty selection displayed")
 	}
 	m.Expected = state.Component{Identity: "acme\x1b]0;title\a\naccount"}
-	if strings.ContainsAny(formatSummary(m, "", false, "1.2.3"), "\x1b\a") {
+	if strings.ContainsAny(formatSummary(m, "", false), "\x1b\a") {
 		t.Fatal("terminal controls escaped sanitization")
 	}
 }
 
-func TestSummaryHookIsInteractiveAndEmitsOncePerChange(t *testing.T) {
+func TestSummaryHookStartsQuietAndEmitsOncePerChange(t *testing.T) {
 	zsh, err := exec.LookPath("zsh")
 	if err != nil {
 		t.Skip("zsh unavailable")
@@ -118,7 +131,7 @@ func TestSummaryHookIsInteractiveAndEmitsOncePerChange(t *testing.T) {
 source "$1"
 _chop_show_summary
 _chop_show_summary
-# A new interactive child has its own once-only reminder.
+# New interactive children also start quietly.
 zsh -f -i -c 'source "$1"; _chop_show_summary; _chop_show_summary' _ "$1"
 # Re-sourcing, an unchanged selection, and a canceled operation stay quiet.
 source "$1"
@@ -138,7 +151,7 @@ _chop_show_summary
 	if err != nil {
 		t.Fatalf("interactive hook: %v %s", err, output)
 	}
-	if strings.Count(string(output), "Identity: acme-one") != 2 || strings.Count(string(output), "Identity: acme-two") != 2 {
+	if strings.Count(string(output), "Identity: acme-one") != 0 || strings.Count(string(output), "Identity: acme-two") != 2 {
 		t.Fatalf("summary count: %q", output)
 	}
 }
@@ -173,8 +186,9 @@ func TestDisplayTagsSurvivePreparationAndSharedAdoption(t *testing.T) {
 	}
 	defer follower.Close()
 	t.Setenv(state.SessionFileEnv, follower.Manifest)
+	t.Setenv(ScopeEnv, "shared")
 	t.Setenv("NO_COLOR", "1")
-	if got := CurrentSummary("1.2.3"); got != "ContextHop 1.2.3\nDocker: desktop-linux\nTags: development" {
+	if got := CurrentSummary(); got != "Shared · Local containers · development" {
 		t.Fatalf("adopted summary = %q", got)
 	}
 	m, err := state.LoadManifest(follower.Manifest)
@@ -233,10 +247,9 @@ func TestStatusSharesSummaryColoursAndRetainsFullDetail(t *testing.T) {
 	if plain != want {
 		t.Fatalf("status = %q", plain)
 	}
-	summary, status := formatSummary(m, "payments", true, "1.2.3"), FormatStatus(snapshot, m, true)
+	summary, status := formatSummary(m, "payments", true), FormatStatus(snapshot, m, true)
 	for _, styled := range []string{
-		"\x1b[38;5;245mIdentity: ", "\x1b[38;5;39malex@acme.example",
-		"\x1b[38;2;74;222;128macme-development", "\x1b[38;2;74;222;128mpayments-dev",
+		"\x1b[38;2;74;222;128mpayments-dev",
 		"\x1b[38;5;75mpayments", "\x1b[38;2;74;222;128mdevelopment",
 	} {
 		if !strings.Contains(summary, styled) || !strings.Contains(status, styled) {
@@ -250,5 +263,23 @@ func TestStatusSharesSummaryColoursAndRetainsFullDetail(t *testing.T) {
 	snapshot.Observed.Project = "acme-staging"
 	if got := FormatStatus(snapshot, m, false); !strings.Contains(got, "CONTEXT-DRIFT") || !strings.Contains(got, "Cloud project: acme-staging") {
 		t.Fatal("status hid observed drift")
+	}
+}
+
+func TestSummaryUsesCompactResourceAndTags(t *testing.T) {
+	m := state.Manifest{
+		Expected:    state.Component{Identity: "alex@acme.example", Project: "acme-development", Kubernetes: "payments-dev"},
+		DisplayTags: map[string]string{"Sandbox": "#123456"},
+	}
+	want := "payments-dev · Sandbox"
+	if got := formatSummary(m, "default", false); got != want {
+		t.Fatalf("summary = %q; want %q", got, want)
+	}
+	if got := formatSummary(m, "payments", false); got != "payments-dev · payments · Sandbox" {
+		t.Fatalf("namespace summary = %q", got)
+	}
+	m.WorkspaceName = "Payments Dev"
+	if got := formatSummary(m, "default", false); got != "Payments Dev · Sandbox" {
+		t.Fatalf("workspace summary = %q", got)
 	}
 }

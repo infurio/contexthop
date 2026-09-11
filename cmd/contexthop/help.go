@@ -53,7 +53,7 @@ In the application:
   Tab / Shift+Tab       switch tabs; / searches the current list
   Space                stage a choice
   Enter                Update shared: update the shared config
-  Shift+Enter / Ctrl+A Apply here: pin this shell
+  Shift+Enter / Ctrl+A  Pin: keep this terminal independent
   Alt+Enter            start a subshell (Option+Enter on macOS)
   Ctrl+G               Join shared without publishing Selected
   Ctrl+W               save Selected as a workspace

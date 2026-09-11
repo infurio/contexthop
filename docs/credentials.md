@@ -69,7 +69,7 @@ a saved binding or a unique exact-account Chrome/Edge match and never a domain m
 ## Session boundaries
 
 **Update shared** updates all integrated terminals following the shared config.
-Pinned shells (**Apply here**) and subshells keep their selections. Following
+Pinned shells (**Pin**) and subshells keep their selections. Following
 terminals adopt changes at prompts and before commands; running applications
 retain their startup environment.
 

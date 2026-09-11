@@ -47,7 +47,7 @@ func commandHints(commands []KeyAction, keys ...string) []string {
 func contextLaunchCommands() []KeyAction {
 	return []KeyAction{
 		{Key: "enter", Label: "Update shared", Footer: "Update shared", Action: "next-default"},
-		{Key: "shift+enter", Aliases: []string{"ctrl+a"}, Label: "Apply here", Footer: "Apply here", Action: "next-apply"},
+		{Key: "shift+enter", Aliases: []string{"ctrl+a"}, Label: "Pin", Footer: "Pin", Action: "next-apply"},
 		{Key: "alt+enter", Label: "Start a subshell", Footer: "Subshell", Action: "next-launch"},
 		{Key: "space", Label: "Stage or unstage this resource", Footer: "Stage", Action: "stage"},
 	}

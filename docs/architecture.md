@@ -143,7 +143,7 @@ contracts when extending or refactoring the code:
   instructions instead of opening a browser.
 - Shell integration must coexist with terminal and theme hooks: preserve shell
   options, terminal markers, secondary/right prompts, and later theme edits.
-  Default to a summary at the first interactive terminal prompt and after a
+  Start new terminals quietly and show a compact label-and-tags summary after a
   displayed selection changes; omit unset components and never read ambient
   configuration to fill them. Automatic summaries must be quiet in scripts and
   redirected output. Persist only user-defined selection tags and their colours.
@@ -210,7 +210,7 @@ to follow it. A locked, atomic pointer update coordinates publishers and readers
 Zsh checks for a new revision before commands and at prompts; each follower gets
 an independent session copy. Native tool configuration files are not rewritten.
 
-Apply here and subshells pin their selection. Join shared only changes
+Pin and subshells pin their selection. Join shared only changes
 following mode; it does not resolve or publish Selected. The TUI reads the shared
 manifest through a local callback every two seconds to preview it while pinned.
 That read neither copies a session nor contacts a provider. Missing and unreadable

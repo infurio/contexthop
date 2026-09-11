@@ -62,6 +62,7 @@ type Snapshot struct {
 	SharedConfigError             string
 	SharedConfigChecked           bool
 	Scope                         string
+	Subshell                      bool
 	Managed                       bool
 	SessionID                     string
 	Destination                   string
@@ -77,7 +78,8 @@ type Snapshot struct {
 func InspectLocal() Snapshot {
 	kubernetes, namespace := readKubeState()
 	snapshot := Snapshot{
-		Scope: os.Getenv("CONTEXTHOP_SCOPE"),
+		Scope:    os.Getenv("CONTEXTHOP_SCOPE"),
+		Subshell: os.Getenv("CONTEXTHOP_ROOT_SESSION_FILE") != "",
 		Observed: Component{
 			Provider:   detectProvider(),
 			Project:    firstNonEmpty(os.Getenv("CLOUDSDK_CORE_PROJECT"), readGcloudProperty("project")),
@@ -313,4 +315,15 @@ func displayNone(value string) string {
 		return "none"
 	}
 	return value
+}
+
+// ScopeLabel names how this terminal follows the active selection.
+func ScopeLabel(scope string, subshell bool) string {
+	if scope == "shared" {
+		return "Shared"
+	}
+	if subshell {
+		return "Subshell"
+	}
+	return "Pinned"
 }

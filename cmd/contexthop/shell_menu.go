@@ -99,7 +99,7 @@ func shellMenuPicker(cfg config.Config, draft ui.Draft, canApply bool) ui.Picker
 	}
 	options := []ui.Option{{Name: "default-shell", Label: "Update shared", EnterLabel: "Update shared", Detail: "Update the shared config and follow it in this terminal. Pinned shells and subshells stay unchanged."}, {Name: "adc", Label: "Application credentials (ADC)", Detail: adc + " · " + source, EnterLabel: "Change"}, {Name: "launch-shell", Label: "Start subshell", EnterLabel: "Start", Detail: "Exit to return to your original shell."}}
 	if canApply {
-		options = append(options, ui.Option{Name: "apply-shell", Label: "Apply here", EnterLabel: "Apply", Detail: "Keep this terminal separate from shared config changes."})
+		options = append(options, ui.Option{Name: "apply-shell", Label: "Pin", EnterLabel: "Pin", Detail: "Keep this terminal separate from shared config changes."})
 	} else {
 		options = append(options, ui.Option{Name: "integration", Label: "Enable shell integration", EnterLabel: "Set up", Detail: "Set up Zsh to switch this shell."})
 	}

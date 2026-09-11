@@ -18,7 +18,7 @@ type LaunchPreview struct {
 }
 
 func launchKeyHints(width int, canApply bool) []string {
-	current := "Apply here"
+	current := "Pin"
 	if !canApply {
 		current = "Set up shell"
 	}

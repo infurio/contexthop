@@ -79,12 +79,10 @@ func (m listModel) activeContextDisplay() contextDisplay {
 	if m.snapshot.Managed {
 		d.status = firstNonEmptyUI(m.snapshot.LocalStatus, "MANAGED")
 	}
-	switch m.snapshot.Scope {
-	case "shared":
-		d.label += " · Shared"
-	case "local":
-		d.label += " · This shell"
+	if m.snapshot.Managed || m.snapshot.Scope != "" {
+		d.label += " · " + state.ScopeLabel(m.snapshot.Scope, m.snapshot.Subshell)
 	}
+
 	return d
 }
 

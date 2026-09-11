@@ -59,7 +59,7 @@ Run `chop` to open Workspaces. Filter a saved name, or use the entity tabs to
 build a context. The launch shortcuts are:
 
 - **Enter — Update shared:** replace the shared config with Selected and follow it here.
-- **Shift+Enter — Apply here:** apply only to this shell and pin its selection.
+- **Shift+Enter — Pin:** apply only to this shell and pin its selection.
 - **Option+Enter — Subshell:** start an isolated subshell (Alt+Enter).
 - **Ctrl+G — Join shared:** rejoin without changing the shared config.
 

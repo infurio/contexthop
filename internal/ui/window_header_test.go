@@ -12,7 +12,11 @@ func TestActivePendingHeaderUsesObservedComponentsAndExactlyTwoLines(t *testing.
 		for _, width := range []int{40, 60, 80, 118, 200} {
 			m := listModel{resourceBrowser: true, width: width, snapshot: state.Snapshot{Managed: status != "UNMANAGED", LocalStatus: status, Destination: "workspace-alias", Observed: state.Component{Identity: "developer@example.com", Project: "payments-dev", Kubernetes: "dev-context", Namespace: "default", Docker: "desktop"}}, selection: [3]string{"other@example.com", "payments-prod", "prod-cluster"}, selectedDocker: "remote"}
 			lines := strings.Split(ansi.Strip(m.resourceSelection()), "\n")
-			if len(lines) != 2 || !strings.HasPrefix(lines[0], "Active   ") || !strings.HasPrefix(lines[1], "Pending  ") {
+			activeLabel := "Active   "
+			if m.snapshot.Managed {
+				activeLabel = "Active · Pinned"
+			}
+			if len(lines) != 2 || !strings.HasPrefix(lines[0], activeLabel) || !strings.HasPrefix(lines[1], "Pending  ") {
 				t.Fatal(lines)
 			}
 			for _, line := range lines {
@@ -110,5 +114,23 @@ func TestSelectedHeaderShowsOrdinaryValuesAt80Columns(t *testing.T) {
 	m.height = 12
 	if len(strings.Split(m.resourceSelection(), "\n")) != 1 {
 		t.Fatal("short terminal lost row needed for filtering")
+	}
+}
+
+func TestActiveContextScopeLabels(t *testing.T) {
+	for _, tc := range []struct {
+		scope    string
+		subshell bool
+		want     string
+	}{
+		{"shared", false, "Active · Shared"},
+		{"local", false, "Active · Pinned"},
+		{"local", true, "Active · Subshell"},
+		{"shared", true, "Active · Shared"},
+	} {
+		m := listModel{snapshot: state.Snapshot{Managed: true, Scope: tc.scope, Subshell: tc.subshell}}
+		if got := m.activeContextDisplay().label; got != tc.want {
+			t.Fatalf("scope label = %q; want %q", got, tc.want)
+		}
 	}
 }

@@ -83,23 +83,48 @@ func summaryColor(text, color string, enabled bool) string {
 	return "\x1b[38;5;" + color + "m" + text + "\x1b[0m"
 }
 
-func formatSummary(m state.Manifest, namespace string, color bool, version string) string {
-	items := selectionItems(m)
+type displaySegment struct{ text, color string }
+
+func selectionSegments(manifest state.Manifest, namespace string) []displaySegment {
+	parts := []displaySegment{}
+	items := selectionItems(manifest)
 	if len(items) == 0 {
-		return ""
+		return nil
 	}
-	lines := []string{summaryColor("ContextHop "+version, "245", color)}
-	for _, item := range items {
-		value := summaryColor(item.value, displayColor(m, item.kind), color)
-		if item.kind == "kubernetes" && namespace != "" {
-			value += summaryColor(" / ", "245", color) + summaryColor(namespace, "75", color)
+	if manifest.WorkspaceName != "" {
+		parts = append(parts, displaySegment{manifest.WorkspaceName, displayColor(manifest, "workspace")})
+	} else {
+		// Prefer the most specific selected resource when no workspace is selected.
+		var label displayItem
+		for _, kind := range []string{"kubernetes", "docker", "project", "identity"} {
+			for _, item := range items {
+				if item.kind == kind {
+					label = item
+					break
+				}
+			}
+			if label.value != "" {
+				break
+			}
 		}
-		lines = append(lines, summaryColor(item.label+": ", "245", color)+value)
+		parts = append(parts, displaySegment{label.value, displayColor(manifest, label.kind)})
+		if label.kind == "kubernetes" && namespace != "" && namespace != "default" {
+			parts = append(parts, displaySegment{namespace, "75"})
+		}
 	}
-	if tags := displayTagsLine(m, color); tags != "" {
-		lines = append(lines, tags)
+	for _, name := range sortedDisplayTags(manifest) {
+		parts = append(parts, displaySegment{name, validDisplayColor(manifest.DisplayTags[name])})
 	}
-	return strings.Join(lines, "\n")
+	return parts
+}
+
+func formatSummary(m state.Manifest, namespace string, color bool) string {
+	parts := selectionSegments(m, namespace)
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		values = append(values, summaryColor(part.text, part.color, color))
+	}
+	return strings.Join(values, summaryColor(" · ", "245", color))
 }
 
 func displayTagsLine(m state.Manifest, color bool) string {
@@ -147,7 +172,7 @@ func FormatStatus(snapshot state.Snapshot, m state.Manifest, color bool) string 
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func CurrentSummary(version string) string {
+func CurrentSummary() string {
 	m, err := state.LoadManifest(os.Getenv(state.SessionFileEnv))
 	if err != nil {
 		return ""
@@ -158,5 +183,11 @@ func CurrentSummary(version string) string {
 			namespace = current
 		}
 	}
-	return formatSummary(m, namespace, os.Getenv("NO_COLOR") == "" && os.Getenv("TERM") != "dumb", version)
+	color := os.Getenv("NO_COLOR") == "" && os.Getenv("TERM") != "dumb"
+	summary := formatSummary(m, namespace, color)
+	if summary == "" {
+		return ""
+	}
+	scope := state.ScopeLabel(os.Getenv(ScopeEnv), os.Getenv("CONTEXTHOP_ROOT_SESSION_FILE") != "")
+	return summaryColor(scope+" · ", "245", color) + summary
 }

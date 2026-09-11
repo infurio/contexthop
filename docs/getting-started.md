@@ -32,7 +32,7 @@ eval "$(chop shell-init zsh --in-place)"
 Open a new terminal, or run that line in the current one. Integrated terminals
 follow the shared config, checking at each prompt and before each command.
 **Enter — Update shared** publishes your selection as the shared config. **Shift+Enter —
-Apply here** applies only here and pins the selection. **Option+Enter — Subshell**
+Pin** applies only here and pins the selection. **Option+Enter — Subshell**
 (Alt+Enter) opens an isolated subshell and works without setup. Pinned shells and
 subshells stay unchanged when you apply a new shared config.
 Loading integration adopts an existing shared config if one has been published.
@@ -81,7 +81,7 @@ That profile must already be signed into the account. See
 1. Use Tab to visit the entity tabs. Stage your identity, project, cluster, and
    optional Docker context with Space; review the **Selected** header.
 2. Press Ctrl+W, give the combination a memorable name, review it, and save.
-3. Choose **Enter — Update shared**, **Shift+Enter — Apply here**, or
+3. Choose **Enter — Update shared**, **Shift+Enter — Pin**, or
    **Option+Enter — Subshell**. Run `exit` to leave a subshell.
 4. Next time, open `chop`, filter the workspace name with `/`, and press Enter.
 

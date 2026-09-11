@@ -417,7 +417,11 @@ _chop_show_summary() {
   [[ -o interactive && -t 1 ]] || return 0
   local _chop_summary
   _chop_summary="$(command "$CONTEXTHOP_BINARY" _summary 2>/dev/null)" || return 0
-  if [[ "${_chop_last_summary:-}" != "$_chop_summary" ]]; then
+  if (( ! ${+_chop_last_summary} )); then
+    _chop_last_summary="$_chop_summary"
+    return 0
+  fi
+  if [[ "$_chop_last_summary" != "$_chop_summary" ]]; then
     _chop_last_summary="$_chop_summary"
     [[ -n "$_chop_summary" ]] && print -r -- "$_chop_summary"
   fi
@@ -500,36 +504,9 @@ func CurrentZshPromptPrefix() string {
 }
 
 func formatPromptPrefix(manifest state.Manifest, namespace string, color bool) string {
-	type segment struct{ text, color string }
-	parts := []segment{}
-	items := selectionItems(manifest)
-	if len(items) == 0 {
+	parts := selectionSegments(manifest, namespace)
+	if len(parts) == 0 {
 		return ""
-	}
-	if manifest.WorkspaceName != "" {
-		parts = append(parts, segment{manifest.WorkspaceName, displayColor(manifest, "workspace")})
-	} else {
-		// A prompt is a compact reminder. Prefer the most specific selected
-		// resource; the summary and status command provide the full breakdown.
-		var label displayItem
-		for _, kind := range []string{"kubernetes", "docker", "project", "identity"} {
-			for _, item := range items {
-				if item.kind == kind {
-					label = item
-					break
-				}
-			}
-			if label.value != "" {
-				break
-			}
-		}
-		parts = append(parts, segment{label.value, displayColor(manifest, label.kind)})
-		if label.kind == "kubernetes" && namespace != "" && namespace != "default" {
-			parts = append(parts, segment{namespace, "75"})
-		}
-	}
-	for _, name := range sortedDisplayTags(manifest) {
-		parts = append(parts, segment{name, validDisplayColor(manifest.DisplayTags[name])})
 	}
 	var prefix strings.Builder
 	if color {

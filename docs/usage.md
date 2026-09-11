@@ -44,7 +44,7 @@ automatically, while ambiguity opens a chooser. Canceling restores the selection
 Browse-all mode widens the list while retaining staging.
 
 **Enter — Update shared** applies Selected to all terminals following the shared
-config. Pinned shells and subshells stay unchanged. **Shift+Enter — Apply here**
+config. Pinned shells and subshells stay unchanged. **Shift+Enter — Pin**
 applies it only here; **Option+Enter — Subshell** starts an isolated subshell.
 Ctrl+W opens the workspace editor with Selected, including ADC. Saving does not
 activate it. Changed fields are marked with `*` and show their previous and new
@@ -87,7 +87,7 @@ primary controls; Help lists available shortcuts for the current screen.
 | Shift+W/I/P/K/D | Jump to Workspaces / Identities / Projects / Kubernetes / Docker |
 | ↑ / ↓, Home / End, PgUp / PgDown | Navigate rows |
 | Enter | Update shared — replace the shared config with Selected and follow it here |
-| Shift+Enter / Ctrl+A | Apply here — apply Selected here and pin it |
+| Shift+Enter / Ctrl+A | Pin — apply Selected here and pin it |
 | Alt+Enter (Option+Enter on macOS) | Subshell — start an isolated subshell with Selected |
 | Space | Stage or unstage |
 | Ctrl+G | Join shared without publishing Selected |
@@ -199,39 +199,37 @@ directory and unrelated variables while updating managed bindings.
 Choose how integrated terminals display the activated selection:
 
 ```sh
-chop config display summary  # show once at startup and when selection changes (default)
+chop config display summary  # show when selection changes (default)
 chop config display prompt   # keep the selection in the prompt
 chop config display off      # no automatic display
 chop config display          # print the effective mode
 ```
 
-Summary mode leaves your prompt alone. It shows only the identity, project,
-Kubernetes context/namespace and Docker context that the selection actually sets,
-plus its user-defined tags. Unset components are omitted. An identity-only
-selection, for example, shows:
+Summary mode leaves your prompt alone. It shows the scope, one workspace or
+resource label, and its user-defined tags. For example:
 
 ```text
-ContextHop
-Identity: alex@acme.example
-Tags: Engineering
+Pinned · Payments Dev · Engineering
 ```
 
-The summary appears at the first interactive prompt, including in a new managed
-subshell, and after a changed Apply here or shared-config adoption. Unchanged
-selections and canceled operations do not repeat it. Scripts and redirected
+New terminals and managed subshells start quietly. The single-line summary appears
+after pinning a changed selection or adopting a shared config. It shows the workspace or
+resource label and user-defined tags, prefixed with Shared, Pinned, or Subshell.
+It has no application name or version. A subshell that joins shared configuration
+shows Shared. Unchanged selections and canceled operations do not repeat it. Scripts and redirected
 output receive no automatic summary. Use `chop status` for the full status.
 
 Prompt mode shows one label plus the selection's user-defined tags, for example
 `[Payments Dev|development]`. It uses the workspace name when selected; otherwise
 it uses the Kubernetes, Docker, project or identity label, in that order. A
 standalone Kubernetes label includes its namespace when it is not `default`.
-The full component breakdown remains available in summary mode and `chop status`.
+The full component breakdown remains available through `chop status`.
 Off disables automatic display while keeping context switching and completion active.
 The setting is saved as `display: summary`, `display: prompt` or `display: off`.
 All integrated terminals using that configuration pick it up at their next prompt.
 After upgrading, reload shell integration once in already-open terminals.
 
-Summary labels and separators are muted. Resource values match each item's first
+The summary scope and separators are muted. Resource values match each item's first
 tag in alphabetical order; untagged items use cyan. Tags retain their exact
 user-defined names and colours, with no synthetic markers or special tag matching.
 Colours and tags are saved with the session; reapply a selection after editing

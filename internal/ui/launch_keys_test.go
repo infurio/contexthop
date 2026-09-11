@@ -28,7 +28,7 @@ func TestLaunchKeysWithAndWithoutShellIntegration(t *testing.T) {
 					m.stack[0].searching = searching
 					before := cloneDraft(m.draft)
 					view := ansi.Strip(m.View().Content)
-					current := "[shift+enter] Apply here"
+					current := "[shift+enter] Pin"
 					if !canApply {
 						current = "[shift+enter] Set up shell"
 					}
