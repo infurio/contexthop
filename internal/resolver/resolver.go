@@ -5,14 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/infurio/contexthop/internal/config"
 )
 
 type Resolved struct {
+	DisplayTags    map[string]string
 	PromptColors   map[string]string
-	Production     bool
 	Name           string
 	WorkspaceName  string
 	IdentityName   string
@@ -58,7 +57,7 @@ func Destination(cfg config.Config, name string) (Resolved, error) {
 		}
 		resolved.WorkspaceName = name
 		resolved.PromptColors["workspace"] = firstTagColor(cfg, destination.LabelSet)
-		resolved.Production = resolved.Production || productionTags(destination.LabelSet)
+		addDisplayTags(&resolved, cfg, destination.LabelSet)
 	}
 	return resolved, err
 }
@@ -75,7 +74,6 @@ func Components(cfg config.Config, selection Selection) (Resolved, error) {
 		}
 		resolved.KubernetesName = selection.Kubernetes
 		resolved.Kubernetes = &target
-		resolved.Production = resolved.Production || productionTags(target.LabelSet)
 		if selection.Project == "" && target.Project != "" {
 			selection.Project = target.Project
 		} else if selection.Project != "" && target.Project != "" && selection.Project != target.Project {
@@ -89,7 +87,6 @@ func Components(cfg config.Config, selection Selection) (Resolved, error) {
 		}
 		resolved.ProjectName = selection.Project
 		resolved.Project = &project
-		resolved.Production = resolved.Production || productionTags(project.LabelSet)
 		if selection.Identity == "" {
 			identity, candidates, err := SuggestedIdentity(cfg, selection.Project, selection.Kubernetes)
 			if err != nil {
@@ -136,15 +133,19 @@ func Components(cfg config.Config, selection Selection) (Resolved, error) {
 	}
 	if resolved.Kubernetes != nil {
 		resolved.PromptColors["kubernetes"] = firstTagColor(cfg, resolved.Kubernetes.LabelSet)
+		addDisplayTags(&resolved, cfg, resolved.Kubernetes.LabelSet)
 	}
 	if resolved.Docker != nil {
 		resolved.PromptColors["docker"] = firstTagColor(cfg, resolved.Docker.LabelSet)
+		addDisplayTags(&resolved, cfg, resolved.Docker.LabelSet)
 	}
 	if resolved.Project != nil {
 		resolved.PromptColors["project"] = firstTagColor(cfg, resolved.Project.LabelSet)
+		addDisplayTags(&resolved, cfg, resolved.Project.LabelSet)
 	}
 	if resolved.Identity != nil {
 		resolved.PromptColors["identity"] = firstTagColor(cfg, resolved.Identity.LabelSet)
+		addDisplayTags(&resolved, cfg, resolved.Identity.LabelSet)
 	}
 	return resolved, nil
 }
@@ -159,15 +160,6 @@ func firstTagColor(cfg config.Config, labels config.LabelSet) string {
 		return config.DefaultTagColor
 	}
 	return color
-}
-
-func productionTags(labels config.LabelSet) bool {
-	for _, tag := range labels.TagNames() {
-		if strings.EqualFold(tag, "production") || strings.EqualFold(tag, "prod") {
-			return true
-		}
-	}
-	return false
 }
 
 // SuggestedIdentity applies the shared resolution policy for project- and
@@ -219,4 +211,17 @@ func KubernetesTargetIdentity(target config.Kubernetes, project *config.Project)
 		return "gke\x00" + projectID + "\x00" + target.Location + "\x00" + target.Cluster
 	}
 	return "kubeconfig\x00" + target.Kubeconfig + "\x00" + target.Context
+}
+
+func addDisplayTags(resolved *Resolved, cfg config.Config, labels config.LabelSet) {
+	if resolved.DisplayTags == nil {
+		resolved.DisplayTags = map[string]string{}
+	}
+	for _, name := range labels.TagNames() {
+		color := cfg.Tags[name].Color
+		if !config.ValidTagColor(color) {
+			color = config.DefaultTagColor
+		}
+		resolved.DisplayTags[name] = color
+	}
 }

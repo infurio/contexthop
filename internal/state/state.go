@@ -25,8 +25,8 @@ type Component struct {
 }
 
 type Manifest struct {
+	DisplayTags                       map[string]string `json:"displayTags,omitempty"`
 	PromptColors                      map[string]string `json:"promptColors,omitempty"`
-	Production                        bool              `json:"production,omitempty"`
 	Previous                          *Selection        `json:"previous,omitempty"`
 	Version                           int               `json:"version"`
 	SessionID                         string            `json:"sessionId"`

@@ -10,6 +10,7 @@ import (
 	"github.com/infurio/contexthop/internal/config"
 	"github.com/infurio/contexthop/internal/resolver"
 	"github.com/infurio/contexthop/internal/state"
+	"github.com/infurio/contexthop/internal/testenv"
 )
 
 func TestSwitchBackHistoryIsPerShellAndFailureAtomic(t *testing.T) {
@@ -106,12 +107,20 @@ func TestSwitchBackSameSelectionPreservesPrevious(t *testing.T) {
 	}
 }
 
-func TestWorkspaceProductionPrompt(t *testing.T) {
-	m := state.Manifest{WorkspaceName: "Payments production", KubernetesLabel: "payments", Production: true, Expected: state.Component{Kubernetes: "payments", Namespace: "default"}}
-	if got := formatPromptPrefix(m, "default", false); got != "[PROD|Payments production|payments|default] " {
+func TestLegacyProductionFlagDoesNotGeneratePromptMarker(t *testing.T) {
+	env := testenv.New(t, testenv.Options{Scenario: "acme"})
+	path := filepath.Join(env.Root, "legacy-session.json")
+	if err := os.WriteFile(path, []byte(`{"version":1,"sessionId":"acme-legacy","workspaceName":"Acme workspace","kubernetesLabel":"Acme cluster","production":true,"expected":{"kubernetes":"acme","namespace":"default"}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	m, err := state.LoadManifest(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := formatPromptPrefix(m, "default", false); got != "[Acme workspace] " {
 		t.Fatal(got)
 	}
-	if got := formatPromptPrefix(m, "default", true); !strings.Contains(got, "%F{39}") || !strings.Contains(got, "Payments production") {
+	if got := formatPromptPrefix(m, "default", true); !strings.Contains(got, "%F{39}") || strings.Contains(got, "PROD") {
 		t.Fatal(got)
 	}
 }

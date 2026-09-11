@@ -328,8 +328,8 @@ func runConfig(args []string) error {
 		return nil
 	}
 	switch args[0] {
-	case "prompt-prefix":
-		return runPromptPrefixConfig(path, args[1:])
+	case "display":
+		return runDisplayConfig(path, args[1:])
 	case "browser":
 		return runBrowserConfig(args[1:])
 	case "validate":

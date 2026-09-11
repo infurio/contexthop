@@ -20,6 +20,9 @@ For a manual build, use `make check` and add `$PWD/bin` to PATH.
 [.go-version](../.go-version) is the toolchain source of truth; `TOOLCHAIN`
 can override it locally.
 
+Before v1, backward compatibility is not required. Remove superseded commands
+and settings rather than retaining compatibility aliases or migrations.
+
 ## Ownership
 
 ContextHop separates the saved catalog, session-only observations, the prepared
@@ -104,7 +107,9 @@ contracts when extending or refactoring the code:
 
 - Identity precedence is explicit choice, workspace, eligible access-profile
   preference, project preference, sole eligible identity, then a chooser.
-  Recency must not resolve ambiguity or reorder entity lists.
+  Recency may restore the opening highlight to the last successfully selected
+  visible resource; it must not resolve ambiguity, stage a selection, or reorder
+  entity lists.
 - A physical Kubernetes cluster, access profile, and context alias are distinct.
   Exact access definitions reconcile into one profile; credentials, endpoint or
   TLS differences remain distinct. Namespace-only variants are aliases.
@@ -131,13 +136,20 @@ contracts when extending or refactoring the code:
   Missing observations do not delete saved resources. Browsing never starts discovery.
 - Deletion affects local catalog records, not external resources. Shared-tag
   deletion reviews and removes all assignments atomically. Tags and legacy risk
-  fields do not change activation policy; production tags may mark the prompt.
+  fields do not change activation policy. Tag names have no reserved meanings or
+  case-insensitive matching rules and must not generate synthetic prompt markers.
 - Store credential references, never credential contents. Diagnostics must not
   leak secrets or authentication callbacks. Noninteractive failure gives recovery
   instructions instead of opening a browser.
 - Shell integration must coexist with terminal and theme hooks: preserve shell
   options, terminal markers, secondary/right prompts, and later theme edits.
-  Prefer a stable prompt reference over rewriting the prompt on each refresh.
+  Default to a summary at the first interactive terminal prompt and after a
+  displayed selection changes; omit unset components and never read ambient
+  configuration to fill them. Automatic summaries must be quiet in scripts and
+  redirected output. Persist only user-defined selection tags and their colours.
+  Offer explicit summary, prompt and off modes. Keep prompt mode to one selection
+  label plus user tags; prefer a stable prompt reference over rewriting the
+  prompt on each refresh.
 - Keep state understandable without color, tag colors intact when highlighted,
   and Help usable on narrow/resized terminals. Completed background results must
   survive cancellation and errors.

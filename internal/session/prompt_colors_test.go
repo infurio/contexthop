@@ -7,21 +7,22 @@ import (
 )
 
 func TestPromptItemColors(t *testing.T) {
-	m := state.Manifest{WorkspaceName: "Work", KubernetesLabel: "Cluster", Production: true,
+	m := state.Manifest{WorkspaceName: "Work", KubernetesLabel: "Cluster",
 		PromptColors: map[string]string{"workspace": "#123456", "kubernetes": "#abcdef"},
 		Expected:     state.Component{Kubernetes: "cluster", Namespace: "default"}}
 	got := formatPromptPrefix(m, "default", true)
-	for _, want := range []string{"%F{#123456}PROD%f", "%F{#123456}Work%f", "%F{#abcdef}Cluster%f", "%F{75}default%f"} {
+	for _, want := range []string{"%F{#123456}Work%f"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %s: %s", want, got)
 		}
 	}
 	if strings.Contains(got, "%F{196}") {
-		t.Fatal("production overrides tag colors")
+		t.Fatal("prompt overrides tag colors")
 	}
-	if got := formatPromptPrefix(m, "default", false); got != "[PROD|Work|Cluster|default] " {
+	if got := formatPromptPrefix(m, "default", false); got != "[Work] " {
 		t.Fatal(got)
 	}
+	m.WorkspaceName = ""
 	m.PromptColors["kubernetes"] = "red}$(touch /tmp/nope)"
 	if got := formatPromptPrefix(m, "", true); !strings.Contains(got, "%F{39}Cluster%f") || strings.Contains(got, "touch") {
 		t.Fatal(got)

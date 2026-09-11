@@ -18,6 +18,10 @@ import (
 var version = "0.1.0-dev"
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "_summary" {
+		fmt.Print(configuredSummary())
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "_prompt" {
 		fmt.Print(configuredPromptPrefix())
 		return
@@ -41,6 +45,10 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) == 1 && args[0] == "_summary" {
+		fmt.Print(configuredSummary())
+		return nil
+	}
 	if len(args) == 1 && args[0] == "_shell-baseline" {
 		fmt.Print(session.ShellBaseline())
 		return nil
@@ -135,7 +143,12 @@ func run(args []string) error {
 				snapshot.LocalStatus = "LOCAL MATCH"
 			}
 		}
-		fmt.Print(ui.FormatText(snapshot))
+		manifest := state.Manifest{}
+		if snapshot.Managed {
+			manifest, _ = state.LoadManifest(os.Getenv(state.SessionFileEnv))
+		}
+		color := isTerminal(os.Stdout) && os.Getenv("NO_COLOR") == "" && os.Getenv("TERM") != "dumb"
+		fmt.Print(session.FormatStatus(snapshot, manifest, color))
 		if snapshot.Message != "" {
 			fmt.Println(snapshot.Message)
 		}

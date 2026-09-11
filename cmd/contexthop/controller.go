@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/infurio/contexthop/internal/appstate"
 	"github.com/infurio/contexthop/internal/catalog"
@@ -49,7 +50,23 @@ func (c *applicationController) Browser(screen ui.Screen, draft ui.Draft) ui.Pic
 }
 
 func (c *applicationController) Pickers() map[ui.Screen]ui.Picker {
-	return c.pickers(c.resources)
+	pickers := c.pickers(c.resources)
+	for screen, picker := range pickers {
+		if !picker.ResourceBrowser {
+			continue
+		}
+		var latest time.Time
+		for _, option := range picker.Options {
+			if option.Hidden || strings.HasPrefix(option.Name, "\x00__") {
+				continue
+			}
+			if used := c.history.Time(picker.Dimension, option.Name); used.After(latest) {
+				latest, picker.Focus = used, option.Name
+			}
+		}
+		pickers[screen] = picker
+	}
+	return pickers
 }
 
 func (c *applicationController) pickers(resources appstate.Catalog) map[ui.Screen]ui.Picker {

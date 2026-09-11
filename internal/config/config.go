@@ -35,7 +35,7 @@ func ValidateName(name string) error {
 }
 
 type Config struct {
-	PromptPrefix      string                       `yaml:"promptPrefix,omitempty"`
+	Display           string                       `yaml:"display,omitempty"`
 	Tags              map[string]Tag               `yaml:"tags,omitempty"`
 	Discovery         map[string]IdentityDiscovery `yaml:"discovery,omitempty"`
 	Version           int                          `yaml:"version"`
@@ -210,8 +210,8 @@ func Encode(w io.Writer, cfg Config) error {
 }
 
 func (c Config) Validate() error {
-	if c.PromptPrefix != "" && c.PromptPrefix != "on" && c.PromptPrefix != "off" {
-		return errors.New("promptPrefix must be on or off")
+	if c.Display != "" && c.Display != "summary" && c.Display != "prompt" && c.Display != "off" {
+		return errors.New("display must be summary, prompt, or off")
 	}
 	var problems []string
 	for name, identity := range c.Identities {
@@ -544,4 +544,12 @@ func keys[T any](values map[string]T) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+// DisplayMode defaults to summary when no mode is configured.
+func (c Config) DisplayMode() string {
+	if c.Display != "" {
+		return c.Display
+	}
+	return "summary"
 }

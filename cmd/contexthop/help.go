@@ -26,7 +26,7 @@ Sessions:
 Configuration:
   config path                           show the configuration path
   config validate                       validate the configuration
-  config prompt-prefix [on|off]         show or change the terminal prompt prefix setting
+  config display [summary|prompt|off]   show or change automatic shell display
   config edit [recovery-file]           safely edit or recover configuration
   config browser <identity> <chrome|edge> <profile-directory>
                                         configure a browser profile

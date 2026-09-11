@@ -211,7 +211,7 @@ func Prepare(ctx context.Context, resolved resolver.Resolved) (*Session, error) 
 	environment["AWS_SHARED_CREDENTIALS_FILE"] = filepath.Join(directory, "aws-disabled-credentials")
 
 	manifest := state.Manifest{
-		Production:                        resolved.Production,
+		DisplayTags:                       resolved.DisplayTags,
 		PromptColors:                      resolved.PromptColors,
 		Version:                           1,
 		SessionID:                         id,
@@ -413,8 +413,20 @@ _chop_refresh_prompt() {
   CONTEXTHOP_BASE_PROMPT="${PROMPT/"$_chop_prompt_fragment"/}"
 }
 
+_chop_show_summary() {
+  [[ -o interactive && -t 1 ]] || return 0
+  local _chop_summary
+  _chop_summary="$(command "$CONTEXTHOP_BINARY" _summary 2>/dev/null)" || return 0
+  if [[ "${_chop_last_summary:-}" != "$_chop_summary" ]]; then
+    _chop_last_summary="$_chop_summary"
+    [[ -n "$_chop_summary" ]] && print -r -- "$_chop_summary"
+  fi
+  return 0
+}
+
 autoload -Uz add-zsh-hook
 add-zsh-hook precmd _chop_refresh_prompt
+add-zsh-hook precmd _chop_show_summary
 add-zsh-hook preexec _chop_sync_default
 add-zsh-hook zshexit _chop_cleanup_owned_session
 _chop_refresh_prompt
@@ -488,42 +500,36 @@ func CurrentZshPromptPrefix() string {
 }
 
 func formatPromptPrefix(manifest state.Manifest, namespace string, color bool) string {
-	label := manifest.KubernetesLabel
-	kind := "kubernetes"
-	if label == "" {
-		label = manifest.Expected.Kubernetes
+	type segment struct{ text, color string }
+	parts := []segment{}
+	items := selectionItems(manifest)
+	if len(items) == 0 {
+		return ""
 	}
-	hasKubernetes := label != ""
-	if label == "" && manifest.Expected.Docker != "" && manifest.Expected.Docker != disabledDockerContext {
-		label, kind = manifest.Expected.Docker, "docker"
-	}
-	if label == "" {
-		for _, candidate := range []struct{ value, kind string }{
-			{manifest.Expected.Project, "project"}, {manifest.Expected.Identity, "identity"},
-			{manifest.Destination, "workspace"}, {"contexthop", ""},
-		} {
-			if candidate.value != "" {
-				label, kind = candidate.value, candidate.kind
+	if manifest.WorkspaceName != "" {
+		parts = append(parts, segment{manifest.WorkspaceName, displayColor(manifest, "workspace")})
+	} else {
+		// A prompt is a compact reminder. Prefer the most specific selected
+		// resource; the summary and status command provide the full breakdown.
+		var label displayItem
+		for _, kind := range []string{"kubernetes", "docker", "project", "identity"} {
+			for _, item := range items {
+				if item.kind == kind {
+					label = item
+					break
+				}
+			}
+			if label.value != "" {
 				break
 			}
 		}
-	}
-	type segment struct{ text, color string }
-	itemColor := func(kind string) string {
-		if value := manifest.PromptColors[kind]; config.ValidTagColor(value) {
-			return value
+		parts = append(parts, segment{label.value, displayColor(manifest, label.kind)})
+		if label.kind == "kubernetes" && namespace != "" && namespace != "default" {
+			parts = append(parts, segment{namespace, "75"})
 		}
-		return "39"
 	}
-	parts := []segment{{label, itemColor(kind)}}
-	if manifest.WorkspaceName != "" && manifest.WorkspaceName != label {
-		parts = append([]segment{{manifest.WorkspaceName, itemColor("workspace")}}, parts...)
-	}
-	if manifest.Production {
-		parts = append([]segment{{"PROD", parts[0].color}}, parts...)
-	}
-	if hasKubernetes && namespace != "" {
-		parts = append(parts, segment{namespace, "75"})
+	for _, name := range sortedDisplayTags(manifest) {
+		parts = append(parts, segment{name, validDisplayColor(manifest.DisplayTags[name])})
 	}
 	var prefix strings.Builder
 	if color {
@@ -683,6 +689,7 @@ func ShellInit(shell string) (string, error) {
 	script.WriteString("_chop_cleanup_owned_session 2>/dev/null\n")
 	script.WriteString("unfunction _chop_sync_default _chop_restore_baseline _chop_cleanup_owned_session 2>/dev/null\n")
 	script.WriteString("unset _chop_baseline _chop_owned_session CONTEXTHOP_SCOPE CONTEXTHOP_SHARED_REVISION\n")
+	script.WriteString("add-zsh-hook -d precmd _chop_show_summary 2>/dev/null\nunfunction _chop_show_summary 2>/dev/null\nunset _chop_last_summary\n")
 	script.WriteString("unfunction _chop_refresh_prompt 2>/dev/null\n")
 	script.WriteString("unfunction chop 2>/dev/null\n")
 	script.WriteString("if [[ -n ${_chop_prompt_fragment+x} ]]; then PROMPT=\"${PROMPT/\"$_chop_prompt_fragment\"/}\"; elif [[ -n ${CONTEXTHOP_BASE_PROMPT+x} ]]; then PROMPT=\"$CONTEXTHOP_BASE_PROMPT\"; fi\n")
