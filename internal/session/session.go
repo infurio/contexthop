@@ -419,6 +419,9 @@ _chop_show_summary() {
   _chop_summary="$(command "$CONTEXTHOP_BINARY" _summary 2>/dev/null)" || return 0
   if (( ! ${+_chop_last_summary} )); then
     _chop_last_summary="$_chop_summary"
+    if [[ -n "$_chop_summary" && "$(command "$CONTEXTHOP_BINARY" _summary-startup 2>/dev/null)" == on ]]; then
+      print -r -- "$_chop_summary"
+    fi
     return 0
   fi
   if [[ "$_chop_last_summary" != "$_chop_summary" ]]; then

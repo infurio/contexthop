@@ -26,6 +26,7 @@ Sessions:
 Configuration:
   config path                           show the configuration path
   config validate                       validate the configuration
+  config summary-startup [on|off]      show summary when a terminal opens
   config display [summary|prompt|off]   show or change automatic shell display
   config edit [recovery-file]           safely edit or recover configuration
   config browser <identity> <chrome|edge> <profile-directory>

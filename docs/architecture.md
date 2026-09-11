@@ -143,7 +143,8 @@ contracts when extending or refactoring the code:
   instructions instead of opening a browser.
 - Shell integration must coexist with terminal and theme hooks: preserve shell
   options, terminal markers, secondary/right prompts, and later theme edits.
-  Start new terminals quietly and show a compact label-and-tags summary after a
+  Show a startup summary by default (`summaryStartup: false` makes startup
+  quiet) and show a compact label-and-tags summary after a
   displayed selection changes; omit unset components and never read ambient
   configuration to fill them. Automatic summaries must be quiet in scripts and
   redirected output. Persist only user-defined selection tags and their colours.

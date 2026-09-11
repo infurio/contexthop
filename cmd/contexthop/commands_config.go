@@ -131,3 +131,38 @@ func configuredSummary() string {
 	}
 	return session.CurrentSummary()
 }
+
+func summaryStartupSetting() string {
+	cfg, err := loadConfig()
+	if err == nil && cfg.SummaryStartup {
+		return "on"
+	}
+	return "off"
+}
+
+func runSummaryStartupConfig(path string, args []string) error {
+	if len(args) > 1 || len(args) == 1 && args[0] != "on" && args[0] != "off" {
+		return fmt.Errorf("usage: chop config summary-startup [on|off]")
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		return err
+	}
+	if len(args) == 0 {
+		if cfg.SummaryStartup {
+			fmt.Println("on")
+		} else {
+			fmt.Println("off")
+		}
+		return nil
+	}
+	plan, err := catalog.PlanSummaryStartup(cfg, args[0] == "on")
+	if err != nil {
+		return err
+	}
+	if err := catalog.Apply(path, plan); err != nil {
+		return err
+	}
+	fmt.Printf("Startup summary %s. Applies to new terminals in summary mode.\n", args[0])
+	return nil
+}

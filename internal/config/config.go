@@ -35,6 +35,7 @@ func ValidateName(name string) error {
 }
 
 type Config struct {
+	SummaryStartup    bool                         `yaml:"summaryStartup"`
 	Display           string                       `yaml:"display,omitempty"`
 	Tags              map[string]Tag               `yaml:"tags,omitempty"`
 	Discovery         map[string]IdentityDiscovery `yaml:"discovery,omitempty"`
@@ -144,6 +145,7 @@ type Destination struct {
 func New() Config {
 	return Config{
 		Version:           Version,
+		SummaryStartup:    true,
 		Tags:              map[string]Tag{},
 		Discovery:         map[string]IdentityDiscovery{},
 		Identities:        map[string]Identity{},

@@ -10,6 +10,7 @@ func (source Config) Clone() Config {
 	result := New()
 	result.Version = source.Version
 	result.Display = source.Display
+	result.SummaryStartup = source.SummaryStartup
 	result.Tags = maps.Clone(source.Tags)
 	result.Discovery = CloneDiscovery(source.Discovery)
 	result.LegacyDestinations = map[string]Destination{}

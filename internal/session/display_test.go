@@ -98,9 +98,15 @@ func TestSummaryHookStartsQuietAndEmitsOncePerChange(t *testing.T) {
 		t.Fatal(err)
 	}
 	binary := filepath.Join(env.Bin, "chop")
-	if err := os.WriteFile(binary, []byte("#!/bin/sh\nif [ \"$1\" = _summary ]; then cat \"$SUMMARY_FILE\"; fi\n"), 0700); err != nil {
+	if err := os.WriteFile(binary, []byte(`#!/bin/sh
+case "$1" in
+ _summary) cat "$SUMMARY_FILE" ;;
+ _summary-startup) echo "${SUMMARY_STARTUP:-off}" ;;
+esac
+`), 0700); err != nil {
 		t.Fatal(err)
 	}
+
 	path := filepath.Join(env.Root, "summary")
 	env.Vars["SUMMARY_FILE"] = path
 	if err := os.WriteFile(path, []byte("Identity: acme-one"), 0600); err != nil {
@@ -154,6 +160,20 @@ _chop_show_summary
 	if strings.Count(string(output), "Identity: acme-one") != 0 || strings.Count(string(output), "Identity: acme-two") != 2 {
 		t.Fatalf("summary count: %q", output)
 	}
+	for _, mode := range []string{"on", "off"} {
+		env.Vars["SUMMARY_STARTUP"] = mode
+		cmd := exec.Command(script, "-q", "/dev/null", zsh, "-f", "-i", "-c", `source "$1"; _chop_show_summary; _chop_show_summary; source "$1"; _chop_show_summary`, "_", init)
+		cmd.Env = env.Environ()
+		output, err := cmd.CombinedOutput()
+		want := 0
+		if mode == "on" {
+			want = 1
+		}
+		if err != nil || strings.Count(string(output), "Identity: acme-two") != want {
+			t.Fatalf("startup %s: %v %q", mode, err, output)
+		}
+	}
+
 }
 
 func TestDisplayTagsSurvivePreparationAndSharedAdoption(t *testing.T) {

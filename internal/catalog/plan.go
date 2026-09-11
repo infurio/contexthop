@@ -597,3 +597,12 @@ func PlanDisplay(cfg config.Config, value string) (Plan, error) {
 	}
 	return buildPlan(cfg, after, nil), nil
 }
+
+func PlanSummaryStartup(cfg config.Config, enabled bool) (Plan, error) {
+	after := cfg.Clone()
+	after.SummaryStartup = enabled
+	if err := after.Validate(); err != nil {
+		return Plan{}, err
+	}
+	return buildPlan(cfg, after, nil), nil
+}

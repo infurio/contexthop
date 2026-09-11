@@ -116,3 +116,28 @@ func TestDisplayModesDefaultAndPersistence(t *testing.T) {
 		t.Fatal("invalid mode accepted")
 	}
 }
+
+func TestSummaryStartupConfig(t *testing.T) {
+	env := testenv.New(t, testenv.Options{Scenario: "acme"})
+	if summaryStartupSetting() != "on" {
+		t.Fatal("startup should default on")
+	}
+	for _, setting := range []string{"on", "off"} {
+		if err := runConfig([]string{"summary-startup", setting}); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := config.Load(env.Catalog)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.SummaryStartup != (setting == "on") || cfg.Clone().SummaryStartup != cfg.SummaryStartup || summaryStartupSetting() != setting {
+			t.Fatal("startup setting did not persist")
+		}
+	}
+	if err := runConfig([]string{"summary-startup", "invalid"}); err == nil {
+		t.Fatal("invalid setting accepted")
+	}
+	if summaryStartupSetting() != "off" {
+		t.Fatal("invalid input changed setting")
+	}
+}

@@ -203,6 +203,8 @@ chop config display summary  # show when selection changes (default)
 chop config display prompt   # keep the selection in the prompt
 chop config display off      # no automatic display
 chop config display          # print the effective mode
+chop config summary-startup on   # show once when a terminal opens (default)
+chop config summary-startup off  # quiet startup
 ```
 
 Summary mode leaves your prompt alone. It shows the scope, one workspace or
@@ -212,7 +214,9 @@ resource label, and its user-defined tags. For example:
 Pinned · Payments Dev · Engineering
 ```
 
-New terminals and managed subshells start quietly. The single-line summary appears
+New terminals and managed subshells show the summary once at startup by default.
+Use `chop config summary-startup off` for quiet startup.
+This only applies in summary mode; prompt and off modes stay unchanged. The single-line summary appears
 after pinning a changed selection or adopting a shared config. It shows the workspace or
 resource label and user-defined tags, prefixed with Shared, Pinned, or Subshell.
 It has no application name or version. A subshell that joins shared configuration

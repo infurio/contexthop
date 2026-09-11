@@ -18,6 +18,10 @@ import (
 var version = "0.1.0-dev"
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "_summary-startup" {
+		fmt.Print(summaryStartupSetting())
+		return
+	}
 	if len(os.Args) == 2 && os.Args[1] == "_summary" {
 		fmt.Print(configuredSummary())
 		return
@@ -45,6 +49,10 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) == 1 && args[0] == "_summary-startup" {
+		fmt.Print(summaryStartupSetting())
+		return nil
+	}
 	if len(args) == 1 && args[0] == "_summary" {
 		fmt.Print(configuredSummary())
 		return nil
