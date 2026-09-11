@@ -129,5 +129,5 @@ func configuredSummary() string {
 	if err != nil || cfg.DisplayMode() != "summary" {
 		return ""
 	}
-	return session.CurrentSummary()
+	return session.CurrentSummary(version)
 }

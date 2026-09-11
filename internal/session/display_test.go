@@ -34,15 +34,15 @@ func TestSelectionDisplayOnlyUsesSelectedComponentsAndTags(t *testing.T) {
 	}
 	m := state.Manifest{Version: 1, SessionID: "acme-display", DisplayTags: r.DisplayTags, PromptColors: r.PromptColors,
 		Expected: state.Component{Identity: identity.Account, Docker: disabledDockerContext}}
-	want := "ContextHop\nIdentity: alex@acme.example\nTags: Engineering"
-	if got := formatSummary(m, "inherited-namespace", false); got != want {
+	want := "ContextHop 1.2.3\nIdentity: alex@acme.example\nTags: Engineering"
+	if got := formatSummary(m, "inherited-namespace", false, "1.2.3"); got != want {
 		t.Fatalf("summary = %q", got)
 	}
 	if got := formatPromptPrefix(m, "inherited-namespace", false); got != "[alex@acme.example|Engineering] " {
 		t.Fatalf("prompt = %q", got)
 	}
-	colored := formatSummary(m, "", true)
-	if !strings.Contains(colored, "\x1b[38;2;18;52;86mEngineering") || !strings.Contains(colored, "\x1b[38;5;245mIdentity: ") {
+	colored := formatSummary(m, "", true, "1.2.3")
+	if !strings.HasPrefix(colored, "\x1b[38;5;245mContextHop 1.2.3\x1b[0m\n") || !strings.Contains(colored, "\x1b[38;2;18;52;86mEngineering") || !strings.Contains(colored, "\x1b[38;5;245mIdentity: ") {
 		t.Fatalf("colors = %q", colored)
 	}
 	data, _ := json.Marshal(m)
@@ -60,17 +60,17 @@ func TestSelectionDisplayOnlyUsesSelectedComponentsAndTags(t *testing.T) {
 			} else {
 				t.Setenv(setting, "dumb")
 			}
-			if got := CurrentSummary(); got != want {
+			if got := CurrentSummary("1.2.3"); got != want {
 				t.Fatalf("plain summary = %q", got)
 			}
 		})
 	}
 	m.Expected = state.Component{Docker: disabledDockerContext}
-	if formatSummary(m, "", true) != "" || formatPromptPrefix(m, "", true) != "" {
+	if formatSummary(m, "", true, "1.2.3") != "" || formatPromptPrefix(m, "", true) != "" {
 		t.Fatal("empty selection displayed")
 	}
 	m.Expected = state.Component{Identity: "acme\x1b]0;title\a\naccount"}
-	if strings.ContainsAny(formatSummary(m, "", false), "\x1b\a") {
+	if strings.ContainsAny(formatSummary(m, "", false, "1.2.3"), "\x1b\a") {
 		t.Fatal("terminal controls escaped sanitization")
 	}
 }
@@ -174,7 +174,7 @@ func TestDisplayTagsSurvivePreparationAndSharedAdoption(t *testing.T) {
 	defer follower.Close()
 	t.Setenv(state.SessionFileEnv, follower.Manifest)
 	t.Setenv("NO_COLOR", "1")
-	if got := CurrentSummary(); got != "ContextHop\nDocker: desktop-linux\nTags: development" {
+	if got := CurrentSummary("1.2.3"); got != "ContextHop 1.2.3\nDocker: desktop-linux\nTags: development" {
 		t.Fatalf("adopted summary = %q", got)
 	}
 	m, err := state.LoadManifest(follower.Manifest)
@@ -233,7 +233,7 @@ func TestStatusSharesSummaryColoursAndRetainsFullDetail(t *testing.T) {
 	if plain != want {
 		t.Fatalf("status = %q", plain)
 	}
-	summary, status := formatSummary(m, "payments", true), FormatStatus(snapshot, m, true)
+	summary, status := formatSummary(m, "payments", true, "1.2.3"), FormatStatus(snapshot, m, true)
 	for _, styled := range []string{
 		"\x1b[38;5;245mIdentity: ", "\x1b[38;5;39malex@acme.example",
 		"\x1b[38;2;74;222;128macme-development", "\x1b[38;2;74;222;128mpayments-dev",

@@ -83,12 +83,12 @@ func summaryColor(text, color string, enabled bool) string {
 	return "\x1b[38;5;" + color + "m" + text + "\x1b[0m"
 }
 
-func formatSummary(m state.Manifest, namespace string, color bool) string {
+func formatSummary(m state.Manifest, namespace string, color bool, version string) string {
 	items := selectionItems(m)
 	if len(items) == 0 {
 		return ""
 	}
-	lines := []string{summaryColor("ContextHop", "245", color)}
+	lines := []string{summaryColor("ContextHop "+version, "245", color)}
 	for _, item := range items {
 		value := summaryColor(item.value, displayColor(m, item.kind), color)
 		if item.kind == "kubernetes" && namespace != "" {
@@ -147,7 +147,7 @@ func FormatStatus(snapshot state.Snapshot, m state.Manifest, color bool) string 
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func CurrentSummary() string {
+func CurrentSummary(version string) string {
 	m, err := state.LoadManifest(os.Getenv(state.SessionFileEnv))
 	if err != nil {
 		return ""
@@ -158,5 +158,5 @@ func CurrentSummary() string {
 			namespace = current
 		}
 	}
-	return formatSummary(m, namespace, os.Getenv("NO_COLOR") == "" && os.Getenv("TERM") != "dumb")
+	return formatSummary(m, namespace, os.Getenv("NO_COLOR") == "" && os.Getenv("TERM") != "dumb", version)
 }

@@ -94,7 +94,7 @@ func TestDisplayModesDefaultAndPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.DisplayMode() != "summary" || configuredPromptPrefix() != "" || configuredSummary() != "ContextHop\nIdentity: alex@acme.example" {
+	if cfg.DisplayMode() != "summary" || configuredPromptPrefix() != "" || configuredSummary() != "ContextHop "+version+"\nIdentity: alex@acme.example" {
 		t.Fatal("wrong default display")
 	}
 	for _, mode := range []string{"prompt", "off", "summary"} {
