@@ -16,7 +16,7 @@ Use `chop help` for the CLI command reference and
 
 - [Development and architecture](architecture.md): local setup, ownership,
   behavior invariants, and testing.
-- [Release guide](../RELEASE.md): GitHub setup, verification, publication, and retries.
+- [Development and deployment](../DEVELOPMENT.md): exact commands to edit, test, and release.
 - [Recording demos](demos/README.md): VHS tapes and fictional provider fixtures.
 
 Each guide owns its topic; other pages link to it instead of repeating its

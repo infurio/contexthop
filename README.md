@@ -103,8 +103,8 @@ ContextHop at existing credential files shares that state.
 Read [credentials and isolation](docs/credentials.md) for details.
 
 The demos use fictional data and local provider stubs.
-[Recordings](docs/demos/README.md) · [Development](docs/architecture.md) ·
-[Releasing](RELEASE.md)
+[Recordings](docs/demos/README.md) · [Development and deployment](DEVELOPMENT.md) ·
+[Architecture](docs/architecture.md)
 
 ## Feedback and contributions
 

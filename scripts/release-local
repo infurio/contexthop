@@ -147,4 +147,4 @@ if __name__ == "__main__":
     try:
         main()
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
-        raise SystemExit(f"Stopped: {error}. Completed steps are not rolled back; see RELEASE.md.")
+        raise SystemExit(f"Stopped: {error}. Completed steps are not rolled back; see DEVELOPMENT.md.")

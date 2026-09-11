@@ -38,7 +38,7 @@ git diff --check
 Add regression coverage for behaviour changes. For TUI changes, check normal
 terminal sizes, keyboard navigation, search, cancellation, and managed/unmanaged
 shell behaviour. Describe manual checks and anything you could not verify.
-Tests run locally. Push directly to main and [release locally](RELEASE.md).
+Tests run locally. Push directly to main and [release locally](DEVELOPMENT.md).
 
 Keep PRs focused and explain the user-visible outcome. The project uses the
 [MIT licence](LICENSE); contributions are made under the same licence.

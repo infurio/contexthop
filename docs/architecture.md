@@ -1,6 +1,6 @@
 # Development and architecture
 
-[Documentation](README.md) · [Release guide](../RELEASE.md)
+[Documentation](README.md) · [Release guide](../DEVELOPMENT.md)
 
 ## Local development
 
@@ -191,7 +191,7 @@ Tests cover resolution, staging, cancellation, snapshot isolation, persistence,
 stale writes, authentication result delivery and asynchronous responsiveness.
 Provider stubs and viewport checks do not prove live-account behavior.
 Record relevant manual integration evidence with the change.
-[Releases](../RELEASE.md) reuse completed local checks.
+[Releases](../DEVELOPMENT.md) reuse completed local checks.
 
 ## Potential follow-up work
 
