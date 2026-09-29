@@ -221,6 +221,11 @@ Authentication handoffs exit with code 77. Child commands preserve their own exi
 codes, so **exit 77 alone is not a signal to authenticate or retry**. ADC handoffs
 print `chop auth --adc` for the resolved identity.
 
+`chop auth` opens browser sign-in by default. Use `chop auth --terminal <identity>`
+only when you want terminal sign-in without automatic browser launch. This also
+works with `--adc`; terminal mode may require manually opening a URL and entering
+an authorization code. The user, not the agent, completes either flow.
+
 <details>
 <summary>Skill installation paths and updates</summary>
 

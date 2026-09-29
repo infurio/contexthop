@@ -23,12 +23,12 @@ func TestAuthenticationHandoffUsesOptionTerminatorForLeadingDash(t *testing.T) {
 		if adc {
 			args = append([]string{"--adc"}, args...)
 		}
-		name, gotADC, parseErr := parseAuthArgs(args)
+		name, gotADC, _, parseErr := parseAuthArgs(args)
 		if parseErr != nil || name != "-Acme's Identity" || gotADC != adc {
 			t.Fatalf("recovery command rejected: %q, %t, %v", name, gotADC, parseErr)
 		}
 	}
-	name, adc, err := parseAuthArgs([]string{"--", "--adc"})
+	name, adc, _, err := parseAuthArgs([]string{"--", "--adc"})
 	if err != nil || adc || name != "--adc" {
 		t.Fatalf("option after terminator was interpreted: %q, %t, %v", name, adc, err)
 	}

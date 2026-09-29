@@ -182,15 +182,42 @@ func Login(ctx context.Context, name string, identity config.Identity) error {
 // LoginCommand prepares an interactive provider login without starting it.
 // TUI callers can hand it to Bubble Tea while preserving their navigation.
 func LoginCommand(ctx context.Context, name string, identity config.Identity) (*exec.Cmd, string, error) {
-	return loginCommand(ctx, name, identity, false)
+	return loginCommand(ctx, name, identity, false, false)
 }
 
 // BrowserLoginCommand always starts fresh browser authorization.
 func BrowserLoginCommand(ctx context.Context, name string, identity config.Identity) (*exec.Cmd, string, error) {
-	return loginCommand(ctx, name, identity, true)
+	return loginCommand(ctx, name, identity, true, false)
 }
 
-func loginCommand(ctx context.Context, name string, identity config.Identity, browser bool) (*exec.Cmd, string, error) {
+// ExplicitLogin is the CLI's user-requested sign-in, browser-first by default.
+// Terminal mode leaves URL/code handling to the user and never opens a browser.
+func ExplicitLogin(ctx context.Context, name string, identity config.Identity, adc, terminal bool) error {
+	var command *exec.Cmd
+	var profile string
+	var err error
+	if adc {
+		command, profile, err = loginADCCommand(ctx, name, identity, terminal)
+	} else {
+		command, profile, err = loginCommand(ctx, name, identity, !terminal, terminal)
+	}
+	if err != nil {
+		return err
+	}
+	if profile != "" {
+		fmt.Printf("Opening Google authentication in %s.\n", profile)
+	}
+	command.Stdin, command.Stdout, command.Stderr = os.Stdin, os.Stdout, os.Stderr
+	if err := command.Run(); err != nil {
+		return fmt.Errorf("authenticate %s: %w", identity.Account, err)
+	}
+	if adc {
+		return CompleteADCLogin(identity)
+	}
+	return nil
+}
+
+func loginCommand(ctx context.Context, name string, identity config.Identity, browser, terminal bool) (*exec.Cmd, string, error) {
 	if identity.Provider != "gcp" {
 		return nil, "", fmt.Errorf("authentication provider %q is not implemented", identity.Provider)
 	}
@@ -208,13 +235,18 @@ func loginCommand(ctx context.Context, name string, identity config.Identity, br
 		"CLOUDSDK_CONFIG":       configDir,
 		"CLOUDSDK_CORE_ACCOUNT": identity.Account,
 	})
-	environment, chromeProfile, err := configureChromeBrowser(environment, identity.Browser, identity.Account, configDir)
-	if err != nil {
-		return nil, "", err
+	chromeProfile := ""
+	if !terminal {
+		environment, chromeProfile, err = configureChromeBrowser(environment, identity.Browser, identity.Account, configDir)
+		if err != nil {
+			return nil, "", err
+		}
 	}
 	args := []string{"auth", "login", identity.Account}
 	if browser {
 		args = append(args, "--force", "--launch-browser")
+	} else if terminal {
+		args = append(args, "--no-launch-browser")
 	}
 	command := exec.CommandContext(ctx, "gcloud", args...)
 	command.Env = environment
@@ -238,6 +270,10 @@ func LoginADC(ctx context.Context, name string, identity config.Identity) error 
 
 // LoginADCCommand prepares the separate ADC login for an interactive TUI process.
 func LoginADCCommand(ctx context.Context, name string, identity config.Identity) (*exec.Cmd, string, error) {
+	return loginADCCommand(ctx, name, identity, false)
+}
+
+func loginADCCommand(ctx context.Context, name string, identity config.Identity, terminal bool) (*exec.Cmd, string, error) {
 	if identity.Provider != "gcp" {
 		return nil, "", fmt.Errorf("authentication provider %q is not implemented", identity.Provider)
 	}
@@ -255,11 +291,18 @@ func LoginADCCommand(ctx context.Context, name string, identity config.Identity)
 		"CLOUDSDK_CONFIG":       configDir,
 		"CLOUDSDK_CORE_ACCOUNT": identity.Account,
 	})
-	environment, chromeProfile, err := configureChromeBrowser(environment, identity.Browser, identity.Account, configDir)
-	if err != nil {
-		return nil, "", err
+	chromeProfile := ""
+	if !terminal {
+		environment, chromeProfile, err = configureChromeBrowser(environment, identity.Browser, identity.Account, configDir)
+		if err != nil {
+			return nil, "", err
+		}
 	}
-	command := exec.CommandContext(ctx, "gcloud", "auth", "application-default", "login", identity.Account, "--quiet")
+	launchFlag := "--launch-browser"
+	if terminal {
+		launchFlag = "--no-launch-browser"
+	}
+	command := exec.CommandContext(ctx, "gcloud", "auth", "application-default", "login", identity.Account, "--quiet", launchFlag)
 	command.Env = environment
 	return command, chromeProfile, nil
 }

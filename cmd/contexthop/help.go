@@ -31,7 +31,9 @@ SESSIONS
   Add --no-login to hand sign-in back to you, even in an interactive shell.
 
 AUTHENTICATION & AGENTS
-  auth <identity-or-workspace>  Sign in; add --adc for application credentials
+  auth <identity-or-workspace>  Sign in through the browser
+    --adc                       Use application-default credentials
+    --terminal                  Use terminal sign-in; do not open a browser
   skill                         Print instructions for Codex and Claude
   skill install codex|claude    Install instructions only; no access granted
 

@@ -268,7 +268,7 @@ printf 'generated' > "$CLOUDSDK_CONFIG/application_default_credentials.json"
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(contents) != "auth application-default login person@example.com --quiet\n" {
+	if string(contents) != "auth application-default login person@example.com --quiet --launch-browser\n" {
 		t.Fatalf("ADC login call = %q", contents)
 	}
 	copied, err := os.ReadFile(desired)

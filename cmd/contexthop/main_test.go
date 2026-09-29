@@ -57,7 +57,7 @@ func TestManagedSessionRejectsCommandsThatWouldNestShells(t *testing.T) {
 
 func TestParseAuthArgsAcceptsADCBeforeOrAfterIdentity(t *testing.T) {
 	for _, args := range [][]string{{"work", "--adc"}, {"--adc", "work"}} {
-		name, adc, err := parseAuthArgs(args)
+		name, adc, _, err := parseAuthArgs(args)
 		if err != nil || name != "work" || !adc {
 			t.Fatalf("parseAuthArgs(%q) = %q, %t, %v", args, name, adc, err)
 		}
@@ -66,7 +66,7 @@ func TestParseAuthArgsAcceptsADCBeforeOrAfterIdentity(t *testing.T) {
 
 func TestParseAuthArgsRejectsInvalidArguments(t *testing.T) {
 	for _, args := range [][]string{nil, {"work", "other"}, {"work", "--unknown"}, {"work", "--adc", "--adc"}} {
-		if _, _, err := parseAuthArgs(args); err == nil {
+		if _, _, _, err := parseAuthArgs(args); err == nil {
 			t.Fatalf("parseAuthArgs(%q) accepted invalid arguments", args)
 		}
 	}

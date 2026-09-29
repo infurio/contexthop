@@ -12,6 +12,18 @@ chop auth <identity>
 chop auth <identity> --adc
 ```
 
+`chop auth` uses browser sign-in by default. For CLI credentials it starts a
+fresh web authorization flow instead of reusing a cached terminal reauthentication
+prompt. To opt into terminal sign-in without automatically opening a browser:
+
+```sh
+chop auth --terminal <identity>
+chop auth --terminal --adc <identity>
+```
+
+Terminal mode skips browser-profile setup. Google may still require a URL/code
+exchange using a browser on another device; it is not a browser-free login guarantee.
+
 If macOS blocks Chop from reading Chrome's profile list, `chop auth` asks
 Chrome 143 or newer to select the profile matching the identity account. Chrome
 shows its profile picker when that account has no matching profile. The agent
