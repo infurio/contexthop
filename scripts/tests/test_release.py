@@ -110,6 +110,10 @@ class LocalRelease(unittest.TestCase):
 
 
 class Packaging(unittest.TestCase):
+    def test_formula_checks_current_help_syntax(self):
+        text = release.formula("1.2.3", "https://example.com/archive.tar.gz", "a" * 64)
+        self.assertIn('assert_match "chop <command> [options]"', text)
+
     def test_archive_and_smoke_tests_are_isolated(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
