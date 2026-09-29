@@ -129,7 +129,7 @@ class Packaging(unittest.TestCase):
 
             def read(*args, **kwargs):
                 environments.append(kwargs["env"])
-                return "contexthop 1.2.3" if args[1] == "version" else "Usage: chop"
+                return "contexthop 1.2.3" if args[1] == "version" else "USAGE\n  chop <command> [options]"
 
             with patch.object(release, "run", execute), patch.object(release, "output", read):
                 archive = release.build(source, out, "1.2.3")

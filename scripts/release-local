@@ -64,7 +64,7 @@ def build(source, out, version):
                  "CONTEXTHOP_CACHE_DIR": home + "/cache"}
         if output(str(binary), "version", env=smoke) != f"contexthop {version}":
             raise ValueError("binary version mismatch")
-        if "Usage:" not in output(str(binary), "help", env=smoke):
+        if "chop <command> [options]" not in output(str(binary), "help", env=smoke):
             raise ValueError("binary help smoke test failed")
         run("zsh", "-f", "-c", 'eval "$("$1" shell-init zsh --in-place)"; chop version', "_", str(binary), env=smoke)
     archive = out / f"contexthop_{version}_darwin_arm64.tar.gz"
