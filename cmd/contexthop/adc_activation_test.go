@@ -41,7 +41,7 @@ if [ "$1 $2" = "auth print-access-token" ]; then exit 0; fi
 [ "$1 $2 $3" = "auth application-default print-access-token" ] || exit 91
 [ "$GOOGLE_APPLICATION_CREDENTIALS" = "$TEST_SELECTED_ADC" ] || exit 92
 value=$(/bin/cat "$GOOGLE_APPLICATION_CREDENTIALS") || exit 93
-[ "$value" != expired ] || exit 94
+if [ "$value" = expired ]; then printf 'invalid_grant\n' >&2; exit 94; fi
 printf '%s' "$value"
 `
 				if err := os.WriteFile(filepath.Join(dir, "gcloud"), []byte(gcloud), 0700); err != nil {
@@ -137,8 +137,14 @@ printf '%s' "$value"
 				if success && err != nil {
 					t.Fatal(err)
 				}
-				if !success && (err == nil || !strings.Contains(err.Error(), "ADC verification failed") || !strings.Contains(err.Error(), "chop auth --adc")) {
+				if !success && (err == nil || !strings.Contains(err.Error(), "ADC verification failed")) {
 					t.Fatalf("missing actionable failure: %v", err)
+				}
+				if !success {
+					wantAuth := credential == "missing" || credential == "expired"
+					if strings.Contains(err.Error(), "chop auth --adc") != wantAuth {
+						t.Fatalf("wrong authentication guidance: %v", err)
+					}
 				}
 				if mode == "shared" {
 					copy, revision, followErr := session.FollowShared(sharedRevision)

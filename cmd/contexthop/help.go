@@ -2,63 +2,86 @@ package main
 
 import "fmt"
 
-func printHelp() {
-	fmt.Print(`ContextHop — cloud and runtime contexts for your shell.
+func printHelp() { fmt.Print(helpText) }
 
-Usage: chop [command]
-  chop (or chop config) opens Workspaces in an interactive terminal.
-  Without a terminal, chop prints context; chop config prints the config path.
+const helpText = `ContextHop — cloud and runtime contexts for your shell.
 
-Sessions:
-  use <destination>                     select a destination (also: chop <destination>)
-  -                                     switch back in this managed shell
-  reuse                                 reuse the most recent live session
-  shell <workspace>                     enter an isolated workspace shell
-  exec <workspace> -- <command> [args...] run a command in a workspace
-  shared use                        follow the shared config in this shell
-  shared clear                         clear the shared config
-  status                                show the observed context
-  list                                  list resolved workspaces
-  console [target] [--page <page>]      open Google Cloud Console
-                                        target: identity, project, workspace or cluster
-                                        page: details, workloads or logs
+USAGE
+  chop                          Open the workspace picker
+  chop <command> [options]      Run a command
 
-Configuration:
-  config path                           show the configuration path
-  config validate                       validate the configuration
-  config summary-startup [on|off]      show summary when a terminal opens
-  config display [summary|prompt|off]   show or change automatic shell display
-  config edit [recovery-file]           safely edit or recover configuration
+SESSIONS
+  shell <workspace>             Open an isolated shell; exit to return
+  exec <workspace> -- <cmd>     Run a command without changing this shell
+  use <destination>             Select a resource or workspace
+  -                             Return to this shell's previous context
+  reuse                         Copy the most recent live session
+  list                          List saved workspaces
+  status                        Show this terminal's context
+  shared use                    Follow the shared config in this shell
+  shared clear                  Clear the shared config
+
+  shell and exec also accept component flags instead of a workspace:
+    --identity NAME             Saved identity
+    --project NAME              Saved project
+    --kubernetes NAME           Saved Kubernetes target
+    --docker NAME               Saved Docker context
+
+  Omit unneeded components; saved dependencies still apply.
+  Add --no-login to hand sign-in back to you, even in an interactive shell.
+
+AUTHENTICATION & AGENTS
+  auth <identity-or-workspace>  Sign in; add --adc for application credentials
+  skill                         Print instructions for Codex and Claude
+  skill install codex|claude    Install instructions only; no access granted
+
+CONFIGURATION
+  config                        Open the catalog picker
+  config path                   Show the catalog file path
+  config validate               Validate the catalog
+  config edit [file]            Edit safely or recover from a file
+  config display [mode]         Display mode: summary, prompt, or off
+  config summary-startup [on|off]
+                                Show or hide the startup summary
   config browser <identity> <chrome|edge> <profile-directory>
-                                        configure a browser profile
-  config discover <identity> [project]  discover and save cloud projects/clusters
-  config cache clear [identity]         clear cached provider metadata
-  discover [--write|--dry-run]          preview or import local contexts
-  init [--write|--dry-run]              discover and create configuration
-  backup                                snapshot non-secret local state
-  restore [backup-id|latest|path]       restore a backup
-  reset [--credentials]                 back up and rebuild from discovery
+                                Bind an identity to a browser profile
+  config discover <identity> [project]
+                                Discover and save cloud resources
+  config cache clear [identity]
+                                Clear cached provider metadata
+  link <project> <identity>     Associate a project with an identity
+  discover [--write|--dry-run]  Preview or import local contexts
+  init [--write|--dry-run]      Discover and create configuration
+  backup                        Snapshot non-secret local state
+  restore [backup-id|latest|path]
+                                Restore a backup
+  reset [--credentials]         Back up and rebuild from discovery
 
-Authentication:
-  auth [--adc] <identity-or-workspace>  authenticate isolated credentials
-  link <project> <identity>             manually associate a project with an identity
+CONSOLE & SETUP
+  console [target] [--page <page>]
+                                Open Google Cloud Console
+                                Target: identity, project, workspace, or cluster
+                                Page: details, workloads, or logs
+  shell-init zsh [--in-place]   Print Zsh integration setup
+  completion zsh                Print Zsh completion setup
+  debug [config|<workspace>]    Trace switching steps and timings
+  version                       Show the version
+  help                          Show this help
 
-Setup and diagnostics:
-  shell-init zsh [--in-place]           print shell integration setup
-  completion zsh                        print Zsh completion setup
-  debug [config|<workspace>]            trace switching steps and timings
-  version                               show the version
-  help                                  show this help
+EXAMPLES
+  chop shell 'Payments Dev'
+  chop exec 'Payments Dev' -- kubectl get pods
+  chop shell --no-login --identity 'Acme Engineering' \
+    --project acme-development --kubernetes payments-dev
 
-In the application:
-  Tab / Shift+Tab       switch tabs; / searches the current list
-  Space                stage a choice
-  Enter                Update shared: update the shared config
-  Shift+Enter / Ctrl+A  Pin: keep this terminal independent
-  Alt+Enter            start a subshell (Option+Enter on macOS)
-  Ctrl+G               Join shared without publishing Selected
-  Ctrl+W               save Selected as a workspace
-  o                    options; F1 opens full keyboard help
-  q                    quit (outside search)
-`)
-}
+IN THE PICKER
+  Tab/Shift+Tab   Change tab        Space        Stage a choice
+  Enter           Update shared     Shift+Enter  Pin this terminal
+  Alt+Enter       Open subshell     Ctrl+G       Join shared
+  Ctrl+W          Save workspace    /            Search
+  o               Options           F1           Full keyboard help
+  q               Quit              Ctrl+A       Alternative to Shift+Enter
+
+  On macOS, Alt+Enter is Option+Enter.
+  Without a terminal, chop prints context; chop config prints its file path.
+`

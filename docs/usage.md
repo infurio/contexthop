@@ -1,145 +1,235 @@
 # User guide
 
-[Documentation](README.md) · [Catalog management](configuration.md)
+[Documentation](README.md) · [Catalog management](configuration.md) · [Credentials](credentials.md)
+
+Chop selects the identity, project, Kubernetes target, and Docker context for
+your terminal. Use a saved **workspace** or choose the components you need.
+
+**Start here:** [Interactive picker](#selection-and-workspaces) ·
+[CLI commands](#cli-launches-and-session-reuse) · [Codex and Claude](#local-agents)
+
+**Reference:** [Shared terminals](#zsh-integration) · [Display](#terminal-display) ·
+[ADC](#adc) · [Keyboard shortcuts](#keyboard-reference) · [Cloud Console](#google-cloud-console)
+
+## Quick start
+
+Open the workspace picker:
+
+```sh
+chop
+```
+
+Choose where to apply your selection:
+
+| Action | Key | What changes |
+| --- | --- | --- |
+| Update shared | Enter | Terminals following the shared config |
+| Pin | Shift+Enter or Ctrl+A | This terminal only |
+| Subshell | Alt+Enter (Option+Enter on macOS) | A new isolated child shell; `exit` returns |
+
+Shared and current-terminal switching require [Zsh integration](#zsh-integration).
+For an isolated shell without that setup:
+
+```sh
+chop shell 'Payments Dev'
+# Work in this environment, then return:
+exit
+```
+
+Run `chop status` to inspect the active context, or `chop help` for the CLI reference.
 
 ## Selection and workspaces
 
 `chop` and `chop config` open **Workspaces**. Tab visits Identities, Projects,
 Kubernetes, and Docker. Lists are alphabetical; `/` filters names and metadata.
-Starting `chop` highlights the last successfully selected visible resource in
-the opening tab.
-This does not apply a context until you confirm it.
+The initial highlight remembers the last successfully selected visible resource.
+Highlighting alone does not activate anything.
 
-The header separates **Active**, the observed terminal context, from
-**Selected**, the context that launch and save will use. On regular-sized
-terminals, aligned columns compare Identity, Project, Kubernetes, and Docker.
-A blue `[ADC]` badge beside an identity means ADC is enabled for that column;
-no badge means off. Narrow or short terminals use a compact header.
+### Build a selection
 
-Both Kubernetes columns show the kubeconfig context name and effective namespace.
-Selected reads an inherited namespace from the configured local source, or uses
-an explicit namespace override. If the source cannot be read, it retains the
-“source default” label. Changes made inside an active shell do not change the
-selected source defaults.
-
-All tabs share one reserved message row above the border for selection warnings,
-discovery feedback, and scope notices. Navigation and table headings stay in place
-when a message appears or clears. Selection warnings take priority over tab status;
-`i` Details includes both when they coexist. Long messages end with `…`; press `i` for the full explanation.
-
-Selection markers retain their meaning:
-
-- **✓ Green:** staged with Space; stays fixed while browsing.
-- **›:** supplied by the cursor or its resolved dependencies.
-- **— Grey:** no component selected.
-
-Space on another row replaces that component; Space on the staged row removes
-it. Removing an identity also removes its project and Kubernetes selection;
-removing a project removes Kubernetes. Docker is independent. A workspace stages
-its complete saved combination. Cursor movement never replaces staged components.
+1. Highlight a resource and press **Space** to stage it.
+2. Visit another tab and stage the next component. Staged choices stay fixed
+   while you browse.
+3. Review **Selected** in the header, then choose Update shared, Pin, or Subshell.
 
 Stage an identity to narrow projects, then a project to narrow clusters. You can
-also choose a cluster first: eligible preferences or a sole identity resolve
-automatically, while ambiguity opens a chooser. Canceling restores the selection.
-Browse-all mode widens the list while retaining staging.
+also start with a cluster: saved preferences or a sole eligible identity resolve
+automatically; ambiguity opens a chooser. Canceling preserves your selection.
 
-**Enter — Update shared** applies Selected to all terminals following the shared
-config. Pinned shells and subshells stay unchanged. **Shift+Enter — Pin**
-applies it only here; **Option+Enter — Subshell** starts an isolated subshell.
-Ctrl+W opens the workspace editor with Selected, including ADC. Saving does not
-activate it. Changed fields are marked with `*` and show their previous and new
-values; `i` opens the full comparison. Give workspaces memorable names so filtering is useful.
-
-Esc leaves filter editing, then clears a retained filter, or closes a dialog.
-At the main list, further Esc presses unstage
-Kubernetes, project, identity, then Docker. `c` clears the whole selection.
-Tabs share the panel’s top border. Cyan brackets and a bold white label mark
-the active tab; inactive labels are muted. Tabs containing a staged selection
-turn green, with a brighter label and brackets when active. A staged row under
-the cursor uses a bright green background; moving away restores its dark green
-highlight. The application name and build version appear at the footer's right edge when space permits.
-Staging a workspace focuses its selected resource on the next visit to each
-entity tab. A saved filter is cleared only if it hides that resource. After that,
-tabs retain browsing state within the same scope. While searching, printable
-keys are text; Tab and Left/Right switch tabs immediately and retain each tab's filter.
-Returning to a filtered tab lets you browse its results. `/` starts or resumes filter editing.
-Esc finishes editing without clearing the query or moving the cursor; Space can then
-stage the highlighted result. Press Esc again to clear the filter. Further Esc
-presses follow normal selection and navigation behavior. The editing and clear hints appear
-beside the query when space permits.
-The filter appears in the bottom table border, with the matching and total counts on
-the right. While typing, the border and `/` prompt are cyan and the query is white.
-A retained filter is muted when browsing results. Filtering does not move the table headings.
-All tabs use the same bottom-right count format: resource count, hidden count when
-applicable, and a scroll hint when needed. Scrolling shows a range such as
-`1–25 of 98 projects · ↑/↓ scroll`; filtered ranges also show the unfiltered total.
-
-## Keyboard reference
-
-Options (`o`) includes Apply, Subshell, Stage/Unstage, and Save workspace, alongside
-actions for the highlighted item and tab.
-Enter runs an option; Esc returns without changing staging. The footer keeps the
-primary controls; Help lists available shortcuts for the current screen.
-
-| Key | Action |
+| Marker | Meaning |
 | --- | --- |
-| Tab / Shift+Tab, ← / → | Change tab |
-| Shift+W/I/P/K/D | Jump to Workspaces / Identities / Projects / Kubernetes / Docker |
-| ↑ / ↓, Home / End, PgUp / PgDown | Navigate rows |
-| Enter | Update shared — replace the shared config with Selected and follow it here |
-| Shift+Enter / Ctrl+A | Pin — apply Selected here and pin it |
-| Alt+Enter (Option+Enter on macOS) | Subshell — start an isolated subshell with Selected |
-| Space | Stage or unstage |
-| Ctrl+G | Join shared without publishing Selected |
-| Ctrl+W | Review and save Selected as a workspace |
-| Shift+A | Toggle ADC; requires a selected identity |
-| `/` / Ctrl+U | Start search / clear search text |
-| Esc / `c` | Close or progressively unstage / clear all staging |
-| `o` / `i` | Options / resource information |
-| `n` | Add a resource |
-| `e` / Shift+N on Workspaces | Edit / duplicate |
-| `a` on Identities | Login/logout |
-| `m` | Manage mappings or identity preferences |
-| `b` on Projects/Kubernetes | Toggle selection-based filtering |
-| `d` | Cloud discovery, outside Docker |
-| `l` on Identities/Kubernetes/Docker | Import local contexts |
-| `h` / Shift+H | Show hidden rows / hide or unhide the highlighted item |
-| `t` | Manage tags |
-| Ctrl+D | Review deletion of a local record; Cancel is selected by default |
-| Ctrl+O | Open a supported web console |
-| `r` / Ctrl+R | Refresh active shell status / copy another session's context |
-| Shift+R, when offered | Review a retry of the last operation |
-| `?` / F1 | Help outside text entry / Help anywhere |
-| `q` / Ctrl+C | Quit |
+| ✓ Green | Staged with Space; fixed while browsing |
+| › | Supplied by the cursor or its dependencies |
+| — Grey | Not selected |
 
-Browser profiles and Docker unmapping are Options-only actions. ADC reset is
-also in Options after an override. There is no `s` launch-settings shortcut.
-Dialogs use Enter to confirm. In change confirmations, `i` opens the full,
-scrollable review; Esc returns to confirmation. Text fields use normal
-text-editing keys.
-Discovery requires an unmanaged shell; see [catalog management](configuration.md#discovery).
+Space on a staged row removes it; staging another row replaces that component.
+Removing an identity also removes its project and Kubernetes target. Removing a
+project removes Kubernetes. Docker is independent. Press `c` to clear everything,
+or `b` on Projects/Kubernetes to toggle selection-based filtering.
 
-## ADC
+### Read the header
 
-Shift+A toggles ADC for Selected without staging cursor-derived resources or
-changing the active shell. Options shows **Enable ADC** or **Disable ADC** and,
-after an override, a reset to the workspace setting or default.
+- **Active** is the observed context of this terminal.
+- **Selected** is the combination that launch and save will use.
+- **Shared config** previews the published selection when this terminal is pinned
+  and there is enough room. **Active · Shared** means this terminal follows it.
+- **[ADC]** beside an identity means application-default credentials are enabled.
 
-New combinations default to ADC off; saved workspaces can opt in.
-Without a selected identity, ADC stays off. Ctrl+W includes the effective ADC
-choice when saving. With ADC enabled, all three launch actions prepare CLI and ADC
-credentials together when both need authentication, or prepare ADC separately
-when CLI login is already valid. They resume your selection after verification. This works with
-unsaved selections as well as workspaces.
+Kubernetes values include the context name and effective namespace. Selected
+uses the source namespace unless explicitly overridden. If the source cannot
+be read, it shows “source default”. Changes inside a running shell do not alter
+the selected source defaults.
 
-For ADC setup without launching, highlight an identity and choose
-**Authentication** (`a`, or through Options) → **ADC login**. This preserves your
-selection and does not enable ADC for a launch. **ADC logout** in the same menu
-revokes ADC for all shells and applications using those credentials; shared CLI
-credentials may also need login again. Disable ADC in Selected to stop using it
-in just that shell.
+Warnings appear above the table; press `i` for the full explanation. Smaller
+terminals use a compact header that prioritizes Selected.
 
-Credential preparation and launch-time verification are explained in [credentials and isolation](credentials.md).
+### Save a workspace
+
+Press **Ctrl+W** to review and save Selected, including its ADC setting.
+Saving does not activate it. Changed fields have a `*`; press `i` in the
+confirmation to inspect the full comparison.
+
+A workspace stages its complete saved combination. Use memorable names so
+filtering is useful. See [catalog management](configuration.md) for editing and discovery.
+
+### Search and navigation
+
+Press `/` to start or resume filtering. Tab and Left/Right switch tabs while
+retaining their filters. Press Esc once to finish editing and browse results;
+press it again to clear the filter. Space stages the highlighted result.
+
+Outside search or dialogs, repeated Esc presses unstage Kubernetes, project,
+identity, then Docker. Tabs retain browsing state within the same scope.
+After staging a workspace, each component tab first focuses its selected
+resource, clearing a filter only if it hides that resource.
+
+## CLI launches and session reuse
+
+### Use a saved workspace
+
+```sh
+chop list                                  # list workspaces
+chop shell 'Payments Dev'                   # open an isolated shell
+chop exec 'Payments Dev' -- kubectl get pods # run one command
+chop status                                # inspect this terminal
+```
+
+`shell` keeps the environment active until you exit. `exec` selects it for one
+command without changing the calling shell. It can also run an existing script
+or a multiline command through `sh -c`.
+
+### Explicit component selection
+
+Use saved component names instead of creating a workspace:
+
+```sh
+chop shell \
+  --identity 'Acme Engineering' \
+  --project acme-development \
+  --kubernetes payments-dev \
+  --docker 'Local Docker'
+```
+
+The same flags work with `exec`:
+
+```sh
+chop exec \
+  --identity 'Acme Engineering' \
+  --project acme-development \
+  -- gcloud projects describe acme-development
+```
+
+Omit components you do not need. Saved dependencies still apply: a cluster can
+select its project, and a project can select an unambiguous eligible identity.
+Nothing is filled from the surrounding shell. Conflicting explicit choices and
+ambiguous identities fail instead of silently selecting another target.
+
+These selections do not save a workspace or change shared config. Values are
+**catalog names**, not arbitrary provider IDs. Do not combine a workspace with
+component flags; `none` is not a special value. Use `--workspace=NAME` for a
+workspace name beginning with a dash.
+
+### Switch or copy a context
+
+```sh
+chop use kubernetes:payments-dev # qualify ambiguous names with an entity kind
+chop -                          # return to this managed terminal's previous context
+chop reuse                      # copy the most recent live session
+```
+
+With Zsh integration, `use` changes the current terminal; in an ordinary terminal
+it opens a child shell. `reuse` follows the same pattern. Press **Ctrl+R** in the
+picker to choose a session to copy.
+
+Copies have independent mutable state and no inherited previous-context history.
+The demo switches a copy to OrbStack while the source keeps `desktop-linux`:
+
+![Copy a live session and switch independently](images/reuse.gif)
+
+## Local agents
+
+Tell Codex or Claude:
+
+> Use Chop for this investigation. Run `chop skill` first.
+
+To make the instructions available in future chats, install the skill for your agent:
+
+```sh
+chop skill install codex
+# Or:
+chop skill install claude
+```
+
+Start a new chat after installation. This installs instructions only: it does
+not copy credentials, grant command permissions, or change agent settings.
+
+### Choose the execution mode
+
+For a one-off command or comparison:
+
+```sh
+chop exec --no-login 'Payments Dev' -- kubectl get pods
+```
+
+For sustained work in a persistent interactive terminal:
+
+```sh
+chop shell --no-login 'Payments Dev'
+```
+
+The agent must send subsequent commands to that **same terminal session**.
+Use the startup summary and `chop status` to confirm the context, then `exit`
+before opening another environment. Other terminals retain their own contexts.
+If the agent cannot keep a terminal alive, use `exec`.
+
+Both modes accept [component flags](#explicit-component-selection).
+`--no-login` reuses valid credentials but hands any required sign-in back to you,
+even with an interactive terminal. It applies only to that launch; it is not
+inherited by commands inside the child shell.
+
+### When access needs attention
+
+- **Authentication required; command not started:** run the printed `chop auth`
+  command in your own terminal. Tell the agent when finished so it can retry once.
+- **`provider_access_denied`; command not started:** the agent can request host
+  approval and retry the same command once. If that fails, report the access
+  error; another login is not the remedy.
+- **Network, configuration, or child-command failure:** report or investigate it.
+  Do not automatically replay a command that already started.
+
+Authentication handoffs exit with code 77. Child commands preserve their own exit
+codes, so **exit 77 alone is not a signal to authenticate or retry**. ADC handoffs
+print `chop auth --adc` for the resolved identity.
+
+<details>
+<summary>Skill installation paths and updates</summary>
+
+The installer writes `chop/SKILL.md` under `$CODEX_HOME/skills` (default
+`~/.codex/skills`) or `~/.claude/skills`. Reinstalling identical instructions is a
+no-op. A differing existing skill is left intact: use `chop skill` to review the
+new instructions and update it manually.
+
+</details>
 
 ## Zsh integration
 
@@ -150,158 +240,199 @@ Zsh startup file:
 eval "$(chop shell-init zsh --in-place)"
 ```
 
-Integrated terminals follow the shared config at each prompt and before their
-next command. **Update shared** (Enter) publishes a verified snapshot and makes
-the launching terminal follow it too. New integrated terminals follow automatically.
-Without integration, Update shared still saves the shared config and prints setup
-instructions; that terminal’s environment stays unchanged. Existing running
-applications retain the environment they started with.
+New integrated terminals follow the shared config automatically. Followers adopt
+updates at prompts and before their next command. Already-running applications
+keep the environment they started with.
 
-Shift+Enter pins this shell to its selection; Alt+Enter starts a pinned subshell.
-Neither follows later shared-config changes. The header shows **Active · Shared**
-when following the shared config. When
-using a pinned shell, it also shows **Shared config** alongside Active and
-Selected when there is room. As the terminal gets narrower or shorter, Shared
-config is hidden first, then Active, leaving Selected visible. The shared preview
-refreshes while chop is open; **Not set** means no shared config has been published.
+### Share, pin, and rejoin
 
-Press **Ctrl+G** or choose **Options → Join shared** to follow the existing shared
-config without publishing Selected. The footer shows this shortcut when a shared
-config exists and this shell is not following it. It remains in Options and Help.
-**Update shared** publishes Selected and makes this terminal follow it. A saved
-workspace is not required for any mode.
+- **Enter — Update shared:** publish Selected and follow it here. Other followers
+  adopt it; pinned shells and subshells stay unchanged.
+- **Shift+Enter — Pin:** apply Selected only here and stop following updates.
+- **Alt+Enter — Subshell:** start a pinned child shell.
+- **Ctrl+G — Join shared:** follow the existing shared config without publishing Selected.
+
+None of these actions requires a saved workspace. Without integration, Update
+shared still saves the shared config and prints setup instructions, but leaves
+that terminal's environment unchanged.
 
 ```zsh
-chop shared use     # resume following in this terminal
-chop shared clear   # remove the shared config for all following terminals
+chop shared use   # resume following in this terminal
+chop shared clear # clear the shared config for following terminals
 ```
 
 ![Update shared, pin this shell, inspect the shared config, and rejoin](images/shared.gif)
 
-The older `chop default follow` and `chop default clear` commands remain supported
-as aliases.
+Each follower gets its own session and kubeconfig; native provider configuration
+files remain untouched. Direct changes with `gcloud config set` or `kubectl config`
+do not publish shared updates. Authentication alone does not publish Selected either.
 
-Clearing restores the managed environment bindings each following terminal had
-when integration initialized. Pinned shells stay pinned. Shared snapshots live
-in chop's configuration directory, and each terminal gets its own session and
-kubeconfig. Native gcloud configuration and kubeconfig files remain untouched.
-Changing selections through chop updates the shared config; direct changes with
-`gcloud config set` or `kubectl config` do not publish a new shared config.
-Authentication alone does not change Selected or publish it: press Enter to apply.
+Clearing shared config restores the managed bindings followers had when integration
+initialized. Pinned shells stay pinned. The older `chop default follow` and
+`chop default clear` aliases remain supported.
 
-After upgrading, reload the integration line above in existing terminals.
-To remove integration from a following shell and restore its original bindings,
-run `eval "$(chop shell-init zsh)"` and remove the startup line.
+### Reload, remove, or enable completion
 
-Managed child shells already provide integration. Applying preserves the working
-directory and unrelated variables while updating managed bindings.
+After upgrading, rerun the integration line in existing terminals.
+To remove integration and restore a following shell's original bindings, run:
 
-Choose how integrated terminals display the activated selection:
-
-```sh
-chop config display summary  # show when selection changes (default)
-chop config display prompt   # keep the selection in the prompt
-chop config display off      # no automatic display
-chop config display          # print the effective mode
-chop config summary-startup on   # show once when a terminal opens (default)
-chop config summary-startup off  # quiet startup
+```zsh
+eval "$(chop shell-init zsh)"
 ```
 
-Summary mode leaves your prompt alone. It shows the scope, one workspace or
-resource label, and its user-defined tags. For example:
+Also remove the integration line from your startup file. Managed child shells
+already provide integration. Switching preserves the working directory and
+unrelated environment variables. Recoverable launch failures retain Selected
+for retry; changed dependencies require a fresh review.
 
-```text
-Pinned · Payments Dev · Engineering
-```
-
-New terminals and managed subshells show the summary once at startup by default.
-Use `chop config summary-startup off` for quiet startup.
-This only applies in summary mode; prompt and off modes stay unchanged. The single-line summary appears
-after pinning a changed selection or adopting a shared config. It shows the workspace or
-resource label and user-defined tags, prefixed with Shared, Pinned, or Subshell.
-It has no application name or version. A subshell that joins shared configuration
-shows Shared. Unchanged selections and canceled operations do not repeat it. Scripts and redirected
-output receive no automatic summary. Use `chop status` for the full status.
-
-Prompt mode shows one label plus the selection's user-defined tags, for example
-`[Payments Dev|development]`. It uses the workspace name when selected; otherwise
-it uses the Kubernetes, Docker, project or identity label, in that order. A
-standalone Kubernetes label includes its namespace when it is not `default`.
-The full component breakdown remains available through `chop status`.
-Off disables automatic display while keeping context switching and completion active.
-The setting is saved as `display: summary`, `display: prompt` or `display: off`.
-All integrated terminals using that configuration pick it up at their next prompt.
-After upgrading, reload shell integration once in already-open terminals.
-
-The summary scope and separators are muted. Resource values match each item's first
-tag in alphabetical order; untagged items use cyan. Tags retain their exact
-user-defined names and colours, with no synthetic markers or special tag matching.
-Colours and tags are saved with the session; reapply a selection after editing
-them, or to add tag labels to sessions created by older versions.
-`chop status` uses the same label, resource and tag colours for its full report.
-`NO_COLOR` and `TERM=dumb` disable colours; redirected status output is plain text.
-
-Prompt integration preserves the shell's existing `PROMPT_SUBST` setting.
-When enabled (as in Oh My Zsh), the context label uses a stable variable reference
-so updates do not rewrite terminal prompt markers. Otherwise, the label is
-updated literally. Removing integration removes its own label while preserving
-later theme edits and terminal markers.
-
-An unchanged current-shell context may be a no-op after required ADC verification.
-Recoverable launch failures retain Selected for retry; changed dependencies require
-a fresh review. Subshell exit status is preserved.
-
-Integration registers completion if `compinit` has run. For completion alone:
+Integration registers completion when `compinit` has run. For completion alone:
 
 ```zsh
 eval "$(chop completion zsh)"
 ```
 
-## CLI launches and session reuse
+## Terminal display
 
-```sh
-chop shell "Payments Dev"
-chop exec "Payments Dev" -- terraform plan
-chop use kubernetes:local-cluster
-chop status
-chop -
-chop reuse
+The default summary leaves your prompt alone and shows the scope, selection label,
+and user-defined tags:
+
+```text
+Pinned · Payments Dev · Engineering
 ```
 
-Qualify ambiguous names with an entity kind. `chop -` returns to this terminal's
-previous context. `chop reuse` copies the most recently active live session;
-Ctrl+R lets you choose one. Copies have independent mutable state and do not
-inherit previous-context history. Reuse starts a child in an ordinary terminal
-and replaces the current managed context through Zsh integration.
+It appears once at startup and after a changed selection. Unchanged selections
+and canceled operations do not repeat it. Scripts and redirected output remain
+quiet. Use `chop status` for the full component breakdown.
 
-The demo copies a live fixture session with Ctrl+R, switches the copy to
-OrbStack, and reads the source session’s current Docker context to show it
-still uses `desktop-linux`.
+```sh
+chop config display summary      # show when selection changes (default)
+chop config display prompt       # keep the label and tags in the prompt
+chop config display off          # disable automatic display
+chop config display              # show the current mode
 
-![Copy a live session and switch independently](images/reuse.gif)
+chop config summary-startup off  # quiet startup in summary mode
+chop config summary-startup on   # restore startup summary (default)
+```
+
+The display mode applies to integrated terminals at their next prompt. Off leaves
+switching and completion active. Prompt mode uses the workspace name, or the
+Kubernetes, Docker, project, or identity label in that order.
+
+<details>
+<summary>Colours and prompt compatibility</summary>
+
+Resource colours follow the item's first alphabetical tag; untagged resources use
+cyan. Tags keep their user-defined names and colours. Reapply a selection after
+editing tags or colours to update an existing session. `NO_COLOR` and `TERM=dumb`
+disable colours; redirected status output is plain text.
+
+Prompt integration preserves `PROMPT_SUBST`, terminal markers, and theme changes.
+Removing integration removes only its own label. A standalone Kubernetes prompt
+label includes the namespace when it is not `default`.
+
+</details>
+
+## ADC
+
+Application-default credentials (ADC) are opt-in. New combinations default to off;
+saved workspaces can enable them. Press **Shift+A** to toggle ADC for Selected.
+This neither activates the selection nor stages cursor-derived resources. Options
+also offers enable, disable, and reset to the workspace setting after an override.
+
+ADC requires a selected identity. Ctrl+W saves the effective setting with a
+workspace. Interactive launch actions prepare CLI and ADC credentials together
+when both need login, or ADC separately when CLI login is valid. Launch resumes
+after verification; this also works for unsaved selections.
+
+To prepare ADC without launching, highlight an identity and choose
+**Authentication → ADC login** (`a` or Options). This does not enable ADC for a launch.
+
+**ADC logout affects every shell and application using those credentials**;
+shared CLI credentials may also need login again. To stop using ADC in just your
+selection, disable it instead of logging out.
+
+See [credentials and isolation](credentials.md) for storage and verification.
+
+## Keyboard reference
+
+Press **F1** for screen-specific help or **`o`** for Options. Browser profiles and
+Docker unmapping are Options-only actions. Dialogs use Enter to confirm and Esc
+to cancel; `i` opens the full review in change confirmations.
+
+### Navigation and selection
+
+| Key | Action |
+| --- | --- |
+| Tab / Shift+Tab, ← / → | Change tab |
+| Shift+W/I/P/K/D | Jump to Workspaces / Identities / Projects / Kubernetes / Docker |
+| ↑ / ↓, Home / End, PgUp / PgDown | Navigate rows |
+| Space | Stage or unstage |
+| `/` / Ctrl+U | Start search / clear search text |
+| Esc / `c` | Close or progressively unstage / clear all staging |
+| `b` on Projects/Kubernetes | Toggle selection-based filtering |
+| `o` / `i` | Options / information |
+| `?` / F1 | Help outside text entry / Help anywhere |
+| `q` / Ctrl+C | Quit |
+
+### Launch and sessions
+
+| Key | Action |
+| --- | --- |
+| Enter | Publish Selected to shared config and follow it here |
+| Shift+Enter / Ctrl+A | Apply Selected here and pin this terminal |
+| Alt+Enter (Option+Enter on macOS) | Start an isolated subshell |
+| Ctrl+G | Join shared without publishing Selected |
+| Ctrl+W | Review and save Selected as a workspace |
+| Shift+A | Toggle ADC for Selected |
+| `r` / Ctrl+R | Refresh active status / copy another session's context |
+| Shift+R, when offered | Review a retry of the last operation |
+| Ctrl+O | Open a supported web console |
+
+### Catalog management
+
+| Key | Action |
+| --- | --- |
+| `n` | Add a resource |
+| `e` / Shift+N on Workspaces | Edit / duplicate |
+| `a` on Identities | Authentication menu |
+| `m` | Manage mappings or identity preferences |
+| `d`, outside Docker | Cloud discovery |
+| `l` on Identities/Kubernetes/Docker | Import local contexts |
+| `h` / Shift+H | Show hidden rows / hide or unhide an item |
+| `t` | Manage tags |
+| Ctrl+D | Review deletion of a local record; defaults to Cancel |
+
+Discovery requires an unmanaged shell. See [catalog management](configuration.md#discovery).
 
 ## Google Cloud Console
 
-Ctrl+O opens the highlighted account, project, or supported cluster without
-switching the terminal. In Identities, choose **Options → Browser profile**
-to set a binding, or use:
+Press **Ctrl+O** to open the highlighted account, project, or supported cluster
+without switching the terminal. You can also use:
 
 ```sh
-chop config browser work chrome "Profile 1"
 chop console
-chop console "Payments Dev" --page logs
-chop console "Payments Dev" --page workloads
+chop console 'Payments Dev' --page logs
+chop console 'Payments Dev' --page workloads
+```
+
+To bind an identity to a browser profile, choose **Options → Browser profile**
+on Identities, or run:
+
+```sh
+chop config browser 'Acme Engineering' chrome 'Profile 1'
 ```
 
 Use the last directory of **Profile Path** on `chrome://version` or `edge://version`,
-not the display name. The profile must exist and be signed into the intended
-account. Without a binding, a unique exact-account Chrome or Edge match is used;
-missing or ambiguous matches require configuration. Console does not use domain
-matches, fall back to the default profile, or verify the website's signed-in account.
-Custom browser data roots and non-macOS profile launchers are unsupported.
+not the profile's display name. The profile must exist and already be signed into
+the intended account. Without a binding, Chop uses a unique exact-account Chrome
+or Edge match; missing or ambiguous matches require configuration.
 
-Accounts open the console home; projects open their dashboard; GKE targets open
-cluster details. Logs are cluster-scoped, while Workloads opens the project's
-overview. Non-GKE targets linked to GCP open the project dashboard. Docker and
-standalone Kubernetes have no web action. Identity ambiguity opens a chooser;
-canceling preserves the originating tab and Selected context.
+Accounts open the console home, projects their dashboard, and GKE targets their
+cluster details. Logs are cluster-scoped; Workloads opens the project's overview.
+Non-GKE targets linked to GCP open the project dashboard. Docker and standalone
+Kubernetes have no web action. Identity ambiguity opens a chooser; canceling
+preserves the tab and selection.
+
+Console does not use domain matches, fall back to the default browser profile,
+or verify the website's signed-in account. Custom browser data roots and
+non-macOS profile launchers are unsupported.

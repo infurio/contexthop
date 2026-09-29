@@ -9,7 +9,8 @@
 | [Catalog and recovery](configuration.md) | Discovery, resource editing, paths, backups, and upgrades |
 | [Credentials and isolation](credentials.md) | Login, ADC verification, and session boundaries |
 
-Use `chop help` for the CLI command reference and
+Use `chop help` for the CLI command reference, `chop skill` for local Codex and
+Claude instructions, and
 [config.example.yaml](../config.example.yaml) for the configuration format.
 
 ## Maintaining ContextHop

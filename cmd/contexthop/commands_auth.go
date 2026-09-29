@@ -36,13 +36,16 @@ func runAuth(args []string) error {
 }
 
 func parseAuthArgs(args []string) (name string, adc bool, err error) {
+	options := true
 	for _, arg := range args {
 		switch {
-		case arg == "--adc" && !adc:
+		case options && arg == "--":
+			options = false
+		case options && arg == "--adc" && !adc:
 			adc = true
-		case arg == "--adc":
+		case options && arg == "--adc":
 			return "", false, errors.New("--adc may only be specified once")
-		case strings.HasPrefix(arg, "-"):
+		case options && strings.HasPrefix(arg, "-"):
 			return "", false, fmt.Errorf("unknown auth option %q", arg)
 		case name == "":
 			name = arg

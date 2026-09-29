@@ -43,6 +43,11 @@ func main() {
 			}
 			os.Exit(code)
 		}
+		var login *authenticationRequired
+		if errors.As(err, &login) {
+			fmt.Fprintln(os.Stderr, "chop:", err)
+			os.Exit(77)
+		}
 		fmt.Fprintln(os.Stderr, "chop:", err)
 		os.Exit(1)
 	}
@@ -199,14 +204,13 @@ func run(args []string) error {
 	case "select":
 		return runSelect(args[1:])
 	case "shell":
-		if len(args) != 2 {
-			return errors.New("usage: chop shell <workspace>")
-		}
-		return runInDestination(args[1], nil)
+		return runShellArgs(args[1:])
 	case "exec":
 		return runExec(args[1:])
 	case "auth":
 		return runAuth(args[1:])
+	case "skill":
+		return runSkill(args[1:])
 	case "link":
 		if len(args) != 3 {
 			return errors.New("usage: chop link <project> <identity>")
@@ -298,7 +302,7 @@ func startsChildShell(args []string) bool {
 		return true
 	}
 	switch args[0] {
-	case "k", "kubernetes", "i", "identity", "p", "project", "d", "docker", "console", "completion", "_complete", "status", "config", "shell-init", "init", "backup", "restore", "reset", "discover", "list", "c", "catalog", "m", "map", "exec", "auth", "link", "version", "--version", "-v", "help", "--help", "-h":
+	case "k", "kubernetes", "i", "identity", "p", "project", "d", "docker", "console", "completion", "_complete", "status", "config", "shell-init", "init", "backup", "restore", "reset", "discover", "list", "c", "catalog", "m", "map", "exec", "auth", "skill", "link", "version", "--version", "-v", "help", "--help", "-h":
 		return false
 	default:
 		return true

@@ -200,7 +200,7 @@ func TestNoninteractiveDiscoveryStopsBeforeCloudRequests(t *testing.T) {
 	os.Stdin = input
 	defer func() { os.Stdin = previous; input.Close() }()
 	err = runCatalogDiscovery([]string{"work"})
-	if err == nil || !strings.Contains(err.Error(), "chop auth work") {
+	if err == nil || !strings.Contains(err.Error(), "chop auth 'work'") {
 		t.Fatalf("missing actionable login error: %v", err)
 	}
 	calls, _ := os.ReadFile(filepath.Join(cfg.Identities["work"].CloudSDKConfig, "calls"))

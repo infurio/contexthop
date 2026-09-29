@@ -12,6 +12,13 @@ chop auth <identity>
 chop auth <identity> --adc
 ```
 
+If macOS blocks Chop from reading Chrome's profile list, `chop auth` asks
+Chrome 143 or newer to select the profile matching the identity account. Chrome
+shows its profile picker when that account has no matching profile. The agent
+does not receive the sign-in URL or authorization code. A saved browser profile
+still opens directly when available. Older Chrome versions report the profile
+read error instead of silently choosing a different profile.
+
 To prepare ADC without launching or changing a shell, highlight an identity and
 choose **Authentication** (`a`, or through Options) → **ADC login**. CLI login is not
 required. Chop verifies the ADC account and returns to Identities, retaining the
@@ -61,8 +68,9 @@ and authenticated launches check the selected identity's login. Interactive
 login offers browser or terminal authentication and resumes the pending operation;
 noninteractive commands fail with recovery instructions instead of opening a browser.
 
-On macOS, authentication browser selection prefers an exact-account Chrome
-profile, then a unique same-domain profile; explicit `BROWSER` wins.
+On macOS, authentication uses an identity's saved Chrome or Edge browser profile
+when present. Otherwise, explicit `BROWSER` wins; without either, Chop prefers
+an exact-account Chrome profile, then a unique same-domain profile.
 This differs from [Console navigation](usage.md#google-cloud-console), which uses
 a saved binding or a unique exact-account Chrome/Edge match and never a domain match.
 

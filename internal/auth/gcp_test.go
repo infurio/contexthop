@@ -2,9 +2,11 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,6 +14,81 @@ import (
 	"github.com/infurio/contexthop/internal/config"
 	"github.com/infurio/contexthop/internal/resolver"
 )
+
+func TestCheckSeparatesLoginFromProviderFailures(t *testing.T) {
+	for _, tc := range []struct{ name, diagnostic, kind string }{
+		{"expired", "invalid_grant: credentials have expired", "authentication_required"},
+		{"network", "network is unreachable", "network_error"},
+		{"storage", "permission denied", "provider_access_denied"},
+		{"unknown", "provider failed", "provider_error"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bin, _ := fakeGcloud(t, "printf '%s\\n' '"+tc.diagnostic+"' >&2\nexit 1")
+			t.Setenv("PATH", bin)
+			identity := config.Identity{Provider: "gcp", Account: "alex@acme.example", CloudSDKConfig: t.TempDir()}
+			err := Check(context.Background(), resolver.Resolved{IdentityName: "Acme Engineering", Identity: &identity})
+			var check *CheckError
+			if !errors.As(err, &check) || check.Kind != tc.kind {
+				t.Fatalf("check = %v, want %s", err, tc.kind)
+			}
+		})
+	}
+}
+
+func TestSavedBrowserBindingDoesNotReadChromeMetadata(t *testing.T) {
+	t.Setenv("BROWSER", "another-browser")
+	t.Setenv("HOME", t.TempDir())
+	configDir := t.TempDir()
+	identity := config.Identity{Provider: "gcp", Account: "alex@acme.example", CloudSDKConfig: configDir,
+		Browser: config.BrowserProfile{App: "chrome", Profile: "Profile 7"}}
+	for _, prepare := range []func(context.Context, string, config.Identity) (*exec.Cmd, string, error){LoginCommand, LoginADCCommand} {
+		command, label, err := prepare(context.Background(), "Acme Engineering", identity)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if label != "Google Chrome (Profile 7)" {
+			t.Fatalf("browser label = %q", label)
+		}
+		var launcher string
+		for _, entry := range command.Env {
+			if strings.HasPrefix(entry, "BROWSER=") {
+				launcher = strings.TrimPrefix(entry, "BROWSER=")
+			}
+		}
+		if launcher == "" || launcher == "another-browser" {
+			t.Fatalf("saved binding was not used: %q", launcher)
+		}
+		data, err := os.ReadFile(launcher)
+		if err != nil || !strings.Contains(string(data), "--profile-directory='Profile 7'") {
+			t.Fatalf("browser launcher = %q, %v", data, err)
+		}
+	}
+}
+
+func TestChromeAccountLauncherAvoidsProfileMetadata(t *testing.T) {
+	chrome := filepath.Join(t.TempDir(), "Chrome")
+	if err := os.WriteFile(chrome, []byte("#!/bin/sh\necho 'Google Chrome 154.0.0.0'\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	configDir := t.TempDir()
+	env, label, err := configureChromeByAccount(nil, "alex@acme.example", configDir, chrome, errors.New("operation not permitted"))
+	if err != nil || label != "Google Chrome for this account" || len(env) != 1 || !strings.HasPrefix(env[0], "BROWSER=") {
+		t.Fatalf("Chrome fallback = %q, %q, %v", env, label, err)
+	}
+	launcher := strings.TrimPrefix(env[0], "BROWSER=")
+	data, err := os.ReadFile(launcher)
+	if err != nil || !strings.Contains(string(data), "--profile-email='alex@acme.example' --create-profile-email-if-not-exists") {
+		t.Fatalf("account launcher = %q, %v", data, err)
+	}
+	for _, version := range []string{"Google Chrome 142.0.0.0", "unknown"} {
+		if chromeSupportsEmailPicker(version) {
+			t.Fatalf("unsupported Chrome version %q accepted", version)
+		}
+	}
+	if !chromeSupportsEmailPicker("Google Chrome 143.0.0.0") {
+		t.Fatal("Chrome 143 should support account picker")
+	}
+}
 
 func TestSelectChromeProfilePrefersExactAccount(t *testing.T) {
 	profiles := []chromeProfile{

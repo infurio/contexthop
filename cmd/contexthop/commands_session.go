@@ -26,20 +26,18 @@ import (
 )
 
 func runExec(args []string) error {
-	separator := -1
-	for index, arg := range args {
-		if arg == "--" {
-			separator = index
-			break
-		}
-	}
-	if separator != 1 || len(args) <= separator+1 {
-		return errors.New("usage: chop exec <workspace> -- <command> [args...]")
-	}
-	return runInDestination(args[0], args[separator+1:])
+	return runExecArgs(args)
 }
 
 func runInDestination(name string, commandArgs []string, adcOverride ...string) error {
+	return runInDestinationOptions(name, commandArgs, false, adcOverride...)
+}
+
+func runInDestinationWithLogin(name string, commandArgs []string, noLogin bool) error {
+	return runInDestinationOptions(name, commandArgs, noLogin)
+}
+
+func runInDestinationOptions(name string, commandArgs []string, noLogin bool, adcOverride ...string) error {
 	started := time.Now()
 	cfg, err := loadConfig()
 	debugtrace.Record("Load configuration", time.Since(started), outcomeDetail(err))
@@ -66,9 +64,16 @@ func runInDestination(name string, commandArgs []string, adcOverride ...string) 
 		return switchAborted(name, err)
 	}
 	if len(commandArgs) == 0 {
-		return activateLaunch(resolved, "shell")
+		activation, present := os.LookupEnv(session.ActivationFileEnv)
+		_ = os.Unsetenv(session.ActivationFileEnv)
+		defer func() {
+			if present {
+				_ = os.Setenv(session.ActivationFileEnv, activation)
+			}
+		}()
+		return runResolvedModeWithLogin(resolved, nil, true, noLogin)
 	}
-	return runResolved(resolved, commandArgs)
+	return runResolvedModeWithLogin(resolved, commandArgs, false, noLogin)
 }
 
 func runResolved(resolved resolver.Resolved, commandArgs []string) error {
@@ -76,10 +81,17 @@ func runResolved(resolved resolver.Resolved, commandArgs []string) error {
 }
 
 func runResolvedMode(resolved resolver.Resolved, commandArgs []string, forceSubshell bool, publish ...bool) error {
+	return runResolvedModeWithLogin(resolved, commandArgs, forceSubshell, false, publish...)
+}
+
+func runResolvedModeWithLogin(resolved resolver.Resolved, commandArgs []string, forceSubshell, noLogin bool, publish ...bool) error {
 	name := resolved.Name
 	shared := len(publish) > 0 && publish[0]
 	switchContext, stopSwitch := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSwitch()
+	if noLogin {
+		switchContext = withLoginDisabled(switchContext)
+	}
 	equivalent := false
 	if len(commandArgs) == 0 && !forceSubshell && !shared && os.Getenv(session.ScopeEnv) != "shared" {
 		var err error
@@ -175,7 +187,10 @@ func verifyLaunchADC(ctx context.Context, resolved resolver.Resolved) error {
 	err := cloudauth.CheckADC(ctx, resolved)
 	debugtrace.Record("Verify application credential identity", time.Since(started), outcomeDetail(err))
 	if err != nil {
-		return fmt.Errorf("ADC verification failed: %w; run chop auth --adc %q, then retry", err, resolved.IdentityName)
+		if cloudauth.IsAuthenticationRequired(err) {
+			return fmt.Errorf("ADC verification failed: %w", &authenticationRequired{identity: resolved.IdentityName, adc: true})
+		}
+		return fmt.Errorf("ADC verification failed: %w", launchAuthError(err))
 	}
 	return nil
 }

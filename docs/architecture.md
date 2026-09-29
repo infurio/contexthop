@@ -140,7 +140,10 @@ contracts when extending or refactoring the code:
   case-insensitive matching rules and must not generate synthetic prompt markers.
 - Store credential references, never credential contents. Diagnostics must not
   leak secrets or authentication callbacks. Noninteractive failure gives recovery
-  instructions instead of opening a browser.
+  instructions instead of opening a browser. Explicit `shell` and `exec` launches
+  accept `--no-login` to retain that handoff with an interactive terminal, scoped
+  to the launch rather than inherited by the child. Component flags use the same
+  selection policy as the UI, rejecting contradictory explicit choices.
 - Shell integration must coexist with terminal and theme hooks: preserve shell
   options, terminal markers, secondary/right prompts, and later theme edits.
   Show a startup summary by default (`summaryStartup: false` makes startup

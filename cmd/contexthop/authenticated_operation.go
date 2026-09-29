@@ -108,8 +108,13 @@ func ensureIdentityLogin(ctx context.Context, name string, identity config.Ident
 		return nil
 	} else if ctx.Err() != nil {
 		return ctx.Err()
-	} else if !isTerminal(os.Stdin) {
-		return fmt.Errorf("cannot verify login for %s [%s]: %w; run chop auth %s, then retry", identity.Account, name, err, name)
+	} else if !cloudauth.IsAuthenticationRequired(err) {
+		if cloudauth.IsProviderAccessDenied(err) {
+			return launchAuthError(err)
+		}
+		return fmt.Errorf("cannot verify login for %s [%s]: %w", identity.Account, name, err)
+	} else if !isTerminal(os.Stdin) || loginDisabled(ctx) {
+		return &authenticationRequired{identity: name}
 	}
 	fmt.Fprintf(os.Stderr, "Login required for %s [%s]. The operation will resume after login.\n", identity.Account, name)
 	if err := cloudauth.Login(ctx, name, identity); err != nil {

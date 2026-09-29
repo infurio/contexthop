@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -58,15 +60,52 @@ func Check(ctx context.Context, resolved resolver.Resolved) (result error) {
 	command.Stderr = &diagnostic
 	if err := command.Run(); err != nil {
 		message := strings.ToLower(diagnostic.String())
-		for _, marker := range []string{"reauth", "gcloud auth login", "invalid_grant", "no credential", "authentication required"} {
+		for _, marker := range []string{"reauth", "gcloud auth login", "invalid_grant", "no credential", "authentication required", "credentials have expired", "no active account"} {
 			if strings.Contains(message, marker) {
 				label = "Sign-in required"
-				break
+				return &CheckError{Kind: "authentication_required"}
 			}
 		}
-		return fmt.Errorf("Google CLI authentication is required for %s", resolved.Identity.Account)
+		return classifyCheckFailure(ctx, err, message)
 	}
 	return nil
+}
+
+// CheckError is safe to show to an agent. Provider diagnostics may contain
+// authentication URLs and are never included in the returned error.
+type CheckError struct{ Kind string }
+
+func (e *CheckError) Error() string { return e.Kind }
+
+func IsAuthenticationRequired(err error) bool {
+	var check *CheckError
+	return errors.As(err, &check) && check.Kind == "authentication_required"
+}
+
+func IsProviderAccessDenied(err error) bool {
+	var check *CheckError
+	return errors.As(err, &check) && check.Kind == "provider_access_denied"
+}
+
+func classifyCheckFailure(ctx context.Context, err error, diagnostic string) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	var unavailable *exec.Error
+	if errors.As(err, &unavailable) {
+		return &CheckError{Kind: "provider_unavailable"}
+	}
+	for _, marker := range []string{"permission denied", "operation not permitted"} {
+		if strings.Contains(diagnostic, marker) {
+			return &CheckError{Kind: "provider_access_denied"}
+		}
+	}
+	for _, marker := range []string{"network is unreachable", "connection timed out", "name resolution", "could not resolve"} {
+		if strings.Contains(diagnostic, marker) {
+			return &CheckError{Kind: "network_error"}
+		}
+	}
+	return &CheckError{Kind: "provider_error"}
 }
 
 func CheckADC(ctx context.Context, resolved resolver.Resolved) error {
@@ -91,7 +130,10 @@ func CheckADC(ctx context.Context, resolved resolver.Resolved) error {
 		return err
 	}
 	if _, err := os.Stat(adc); err != nil {
-		return fmt.Errorf("application-default authentication is required for %s", resolved.Identity.Account)
+		if os.IsNotExist(err) {
+			return &CheckError{Kind: "authentication_required"}
+		}
+		return &CheckError{Kind: "provider_access_denied"}
 	}
 	values := map[string]string{
 		"CLOUDSDK_CONFIG":                configDir,
@@ -105,7 +147,17 @@ func CheckADC(ctx context.Context, resolved resolver.Resolved) error {
 	adcCommand.Env = isolatedGoogleEnvironment(os.Environ(), values)
 	token, err := adcCommand.Output()
 	if err != nil {
-		return fmt.Errorf("application-default authentication is expired for %s", resolved.Identity.Account)
+		var exited *exec.ExitError
+		if errors.As(err, &exited) {
+			message := strings.ToLower(string(exited.Stderr))
+			for _, marker := range []string{"reauth", "gcloud auth application-default login", "invalid_grant", "no credential", "authentication required", "credentials have expired"} {
+				if strings.Contains(message, marker) {
+					return &CheckError{Kind: "authentication_required"}
+				}
+			}
+			return classifyCheckFailure(ctx, err, message)
+		}
+		return classifyCheckFailure(ctx, err, "")
 	}
 	return verifyADCIdentity(ctx, strings.TrimSpace(string(token)), resolved.Identity.Account)
 }
@@ -116,7 +168,7 @@ func Login(ctx context.Context, name string, identity config.Identity) error {
 		return err
 	}
 	if chromeProfile != "" {
-		fmt.Printf("Opening Google authentication in Chrome profile %s.\n", chromeProfile)
+		fmt.Printf("Opening Google authentication in %s.\n", chromeProfile)
 	}
 	command.Stdin = os.Stdin
 	command.Stdout = os.Stdout
@@ -156,7 +208,7 @@ func loginCommand(ctx context.Context, name string, identity config.Identity, br
 		"CLOUDSDK_CONFIG":       configDir,
 		"CLOUDSDK_CORE_ACCOUNT": identity.Account,
 	})
-	environment, chromeProfile, err := configureChromeBrowser(environment, identity.Account, configDir)
+	environment, chromeProfile, err := configureChromeBrowser(environment, identity.Browser, identity.Account, configDir)
 	if err != nil {
 		return nil, "", err
 	}
@@ -175,7 +227,7 @@ func LoginADC(ctx context.Context, name string, identity config.Identity) error 
 		return err
 	}
 	if chromeProfile != "" {
-		fmt.Printf("Opening Google authentication in Chrome profile %s.\n", chromeProfile)
+		fmt.Printf("Opening Google authentication in %s.\n", chromeProfile)
 	}
 	command.Stdin, command.Stdout, command.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if err := command.Run(); err != nil {
@@ -203,11 +255,10 @@ func LoginADCCommand(ctx context.Context, name string, identity config.Identity)
 		"CLOUDSDK_CONFIG":       configDir,
 		"CLOUDSDK_CORE_ACCOUNT": identity.Account,
 	})
-	environment, chromeProfile, err := configureChromeBrowser(environment, identity.Account, configDir)
+	environment, chromeProfile, err := configureChromeBrowser(environment, identity.Browser, identity.Account, configDir)
 	if err != nil {
 		return nil, "", err
 	}
-
 	command := exec.CommandContext(ctx, "gcloud", "auth", "application-default", "login", identity.Account, "--quiet")
 	command.Env = environment
 	return command, chromeProfile, nil
@@ -327,8 +378,59 @@ type chromeProfile struct {
 	Account   string
 }
 
-func configureChromeBrowser(environment []string, account, configDir string) ([]string, string, error) {
-	if runtime.GOOS != "darwin" || os.Getenv("BROWSER") != "" {
+const chromeExecutablePath = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+
+// Chrome can select an existing profile by account without exposing its Local
+// State to Chop. Recent Chrome also opens its picker if the account is absent.
+func configureChromeByAccount(environment []string, account, configDir, chromeExecutable string, readErr error) ([]string, string, error) {
+	version, err := exec.Command(chromeExecutable, "--version").Output()
+	if err != nil || !chromeSupportsEmailPicker(string(version)) {
+		return nil, "", fmt.Errorf("read Chrome profiles: %w; Chrome profile selection by account is unavailable", readErr)
+	}
+	launcher := filepath.Join(configDir, "contexthop-chrome")
+	script := "#!/bin/sh\nexec " + shellQuote(chromeExecutable) + " --profile-email=" + shellQuote(account) + " --create-profile-email-if-not-exists \"$@\"\n"
+	if err := os.WriteFile(launcher, []byte(script), 0o700); err != nil {
+		return nil, "", fmt.Errorf("create Chrome profile launcher: %w", err)
+	}
+	return append(environment, "BROWSER="+launcher), "Google Chrome for this account", nil
+}
+
+func chromeSupportsEmailPicker(version string) bool {
+	for _, field := range strings.Fields(version) {
+		major, err := strconv.Atoi(strings.SplitN(field, ".", 2)[0])
+		if err == nil {
+			return major >= 143
+		}
+	}
+	return false
+}
+
+func configureChromeBrowser(environment []string, binding config.BrowserProfile, account, configDir string) ([]string, string, error) {
+	if runtime.GOOS != "darwin" {
+		return environment, "", nil
+	}
+	if binding != (config.BrowserProfile{}) {
+		if err := binding.Validate(); err != nil {
+			return nil, "", err
+		}
+		app := "Google Chrome"
+		if binding.App == "edge" {
+			app = "Microsoft Edge"
+		}
+		launcher := filepath.Join(configDir, "contexthop-browser")
+		script := "#!/bin/sh\nexec /usr/bin/open -na " + shellQuote(app) + " --args --profile-directory=" + shellQuote(binding.Profile) + " \"$@\"\n"
+		if err := os.WriteFile(launcher, []byte(script), 0o700); err != nil {
+			return nil, "", fmt.Errorf("create browser launcher: %w", err)
+		}
+		filtered := make([]string, 0, len(environment)+1)
+		for _, entry := range environment {
+			if !strings.HasPrefix(entry, "BROWSER=") {
+				filtered = append(filtered, entry)
+			}
+		}
+		return append(filtered, "BROWSER="+launcher), app + " (" + binding.Profile + ")", nil
+	}
+	if os.Getenv("BROWSER") != "" {
 		return environment, "", nil
 	}
 	home, err := os.UserHomeDir()
@@ -341,7 +443,7 @@ func configureChromeBrowser(environment []string, account, configDir string) ([]
 		return environment, "", nil
 	}
 	if err != nil {
-		return nil, "", fmt.Errorf("read Chrome profiles: %w", err)
+		return configureChromeByAccount(environment, account, configDir, chromeExecutablePath, err)
 	}
 	var state chromeLocalState
 	if err := json.Unmarshal(data, &state); err != nil {
@@ -359,7 +461,7 @@ func configureChromeBrowser(environment []string, account, configDir string) ([]
 	if selected == nil {
 		return environment, "", nil
 	}
-	chromeExecutable := filepath.Join("/Applications", "Google Chrome.app", "Contents", "MacOS", "Google Chrome")
+	chromeExecutable := chromeExecutablePath
 	if _, err := os.Stat(chromeExecutable); err != nil {
 		return environment, "", nil
 	}
